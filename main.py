@@ -44,8 +44,6 @@ async def on_reaction_add(reaction, user):
 async def on_message(message):
     # if starting pug
     if message.content.startswith('$pickup') or message.content.startswith('$pu'):
-        team_balance_options = {"Random": shuffle_list}
-
         def shuffle_list(l):
             for i in range(len(l)*2):
                 r = randint(0, len(l)-1)
@@ -71,7 +69,7 @@ async def on_message(message):
                 text += f"{selection}: {emoji}\n"
             return text, selection_select, emoji_select
 
-        async def collect_reactions(reply, emoji_select):
+        async def collect_reactions(reply, emoji_select, special_cases = None):
             # kinda slow?
             reply = await reply.channel.fetch_message(reply.id)
             picked_reactions = set()
@@ -101,6 +99,8 @@ async def on_message(message):
         def check_msg(msg, check_message):
             return user == message.author and msg.reference.message_id == check_message.id
 
+        team_balance_options = {"Random": shuffle_list}
+
         guild = message.guild
         channel = message.channel
         roles = guilds_roles.get(guild.id, {}).get("roles")
@@ -125,7 +125,7 @@ async def on_message(message):
             reaction, user = await client.wait_for('reaction_add', timeout=600.0, check=check_source)
         except TimeoutError:
             await channel.send('You waited too long, please try again :D ')
-            retrun 0
+            return 0
         source = emoji_select[str(reaction.emoji)]
 
         # collect players from source
@@ -141,11 +141,11 @@ async def on_message(message):
         text = "Please Choose Players:\n"
         selection_text, player_select, emoji_select = match_emoji(pu_players, emoji_dict, add_all_option=True)
         text += selection_text
-        text += f"Add players manually: ✍️\n"
+        text += f"Add Players Manually: ✍️\n"
         text += f"Finished: 👍\n"
 
         players_reply = await send_selection_message(text, emoji_select, reference=message)
-        emoji_select["✍️"] = "Add players manually"
+        emoji_select["✍️"] = "Add Players Manually"
         await players_reply.add_reaction("✍️")
         await players_reply.add_reaction("👍")
         check_players = partial(check_reaction, check_message=players_reply, ok_reactions=["👍"])
@@ -156,9 +156,11 @@ async def on_message(message):
             return 0
 
         # collect selected players
+        #Speical case for picking "All" shouldn't include "pick manually" 
         picked_players_from_reply = await collect_reactions(players_reply, emoji_select)
-        picked_players = {p.display_name for p in picked_players_from_reply if p != "Add players manually"}
-        if "Add players manually" in  picked_players_from_reply:
+        print(picked_players_from_reply)
+        picked_players = {p.display_name for p in picked_players_from_reply if not isinstance(p,str) and p != "Add Players Manually"}
+        if "Add Players Manually" in  picked_players_from_reply:
             text = "To add players, type their names separated by ,without spaces(example: name1,name2,name3) as a reply to this message\n"
             add_reply = await send_selection_message(text, [], reference=message)
             check_msg = partial(check_msg, check_message=add_reply)
@@ -213,8 +215,8 @@ async def on_message(message):
                 team2.append(p)
             else:
                 team1.append(p)
-        team1 = ",".join(team1)
-        team2 = ",".join(team2)
+        team1 = ", ".join(team1)
+        team2 = ", ".join(team2)
         await channel.send(f"Team 1:{team1}\nTeam 2:{team2} ")
 
 
