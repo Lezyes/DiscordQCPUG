@@ -23,6 +23,60 @@ intents.reactions = True
 client = discord.Client(intents=intents)
 
 
+def shuffle_list(l):
+    for i in range(len(l)*2):
+        r = randint(0, len(l)-1)
+        l.append(l.pop(r))
+    return l[0::2],l[1::2]
+
+def match_emoji(selection_dict, emoji_dict, special_cases_dict=None, multiple_choice=False):
+    selection_select = {}
+    emoji_select = {}
+    special_cases = {}
+    text = ""
+    emoji_options = list(emoji_dict.values())
+    for i, selection in enumerate(selection_dict):
+        emoji = emoji_options[i]
+        selection_select[selection] = emoji
+        emoji_select[emoji] = selection
+        text += f"{selection}: {emoji}\n"
+    if special_cases_dict:
+        for selection in special_cases_dict:
+            i += 1
+            emoji = emoji_options[i]
+            selection_select[selection] = emoji
+            special_cases[emoji] = {"name":selection, "func":special_cases_dict[selection]}
+            text += f"{selection}: {emoji}\n"
+    if multiple_choice:
+        text += f"Finished: 👍\n"
+    return text, selection_select, emoji_select, special_cases
+
+async def collect_reactions(reply, emoji_select, author, special_cases = None):
+    # kinda slow?
+    reply = await reply.channel.fetch_message(reply.id)
+    picked_selection = set()
+    for reaction in reply.reactions:
+        for user in await reaction.users().flatten():
+            if user == author:
+                if special_cases and reaction.emoji in special_cases:
+                    picked_selection = special_cases.get(reaction.emoji,{}).get("func", lambda x: x[0])(
+                                                                    {"picked_selection":picked_selection,
+                                                                     "emoji_select":emoji_select})
+                elif reaction.emoji in emoji_select:
+                    picked_selection.add(emoji_select.get(reaction.emoji))
+    return picked_selection
+
+async def send_selection_message(channel, text, emoji_select, special_cases = None, reference=None, multiple_choice=False):
+    reply = await channel.send(text, reference=reference)
+    for emoji in emoji_select:
+        await reply.add_reaction(emoji)
+    if special_cases:
+        for emoji in special_cases:
+            await reply.add_reaction(emoji)
+    if multiple_choice:
+        await reply.add_reaction("👍")
+    return reply
+
 @client.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(client))
@@ -43,61 +97,8 @@ async def on_reaction_add(reaction, user):
 @client.event
 async def on_message(message):
     # if starting pug
-    if message.content.startswith('$pickup') or message.content.startswith('$pu'):
-        def shuffle_list(l):
-            for i in range(len(l)*2):
-                r = randint(0, len(l)-1)
-                l.append(l.pop(r))
-            return l[0::2],l[1::2]
-
-        def match_emoji(selection_dict, emoji_dict, special_cases_dict=None, multiple_choice=False):
-            selection_select = {}
-            emoji_select = {}
-            special_cases = {}
-            text = ""
-            emoji_options = list(emoji_dict.values())
-            for i, selection in enumerate(selection_dict):
-                emoji = emoji_options[i]
-                selection_select[selection] = emoji
-                emoji_select[emoji] = selection
-                text += f"{selection}: {emoji}\n"
-            if special_cases_dict:
-                for selection in special_cases_dict:
-                    i += 1
-                    emoji = emoji_options[i]
-                    selection_select[selection] = emoji
-                    special_cases[emoji] = {"name":selection, "func":special_cases_dict[selection]}
-                    text += f"{selection}: {emoji}\n"
-            if multiple_choice:
-                text += f"Finished: 👍\n"
-            return text, selection_select, emoji_select, special_cases
-
-        async def collect_reactions(reply, emoji_select, author, special_cases = None):
-            # kinda slow?
-            reply = await reply.channel.fetch_message(reply.id)
-            picked_selection = set()
-            for reaction in reply.reactions:
-                for user in await reaction.users().flatten():
-                    if user == author:
-                        if special_cases and reaction.emoji in special_cases:
-                            picked_selection = special_cases.get(reaction.emoji,{}).get("func", lambda x: x[0])(
-                                                                            {"picked_selection":picked_selection,
-                                                                             "emoji_select":emoji_select})
-                        elif reaction.emoji in emoji_select:
-                            picked_selection.add(emoji_select.get(reaction.emoji))
-            return picked_selection
-
-        async def send_selection_message(text, emoji_select, special_cases = None, reference=None, multiple_choice=False):
-            reply = await message.channel.send(text, reference=reference)
-            for emoji in emoji_select:
-                await reply.add_reaction(emoji)
-            if special_cases:
-                for emoji in special_cases:
-                    await reply.add_reaction(emoji)
-            if multiple_choice:
-                await reply.add_reaction("👍")
-            return reply
-
+    # if message.content.startswith('$pickup') or message.content.startswith('$pu'):
+    if message.content.startswith('$'):
         def check_reaction(reaction, user, check_message, ok_reactions):
             return user == message.author and reaction.message.id == check_message.id and str(reaction.emoji) in ok_reactions
 
@@ -124,7 +125,7 @@ async def on_message(message):
         special_cases_dict = {"All": lambda x:set(x.get("emoji_select",{}).values())}
         selection_text, source_select, emoji_select, special_cases = match_emoji(players, emoji_dict, special_cases_dict=special_cases_dict, multiple_choice=True)
         text = "Please Choose Player source:\n" + selection_text
-        source_reply = await send_selection_message(text, emoji_select, special_cases=special_cases, reference=message, multiple_choice=True)
+        source_reply = await send_selection_message(channel, text, emoji_select, special_cases=special_cases, reference=message, multiple_choice=True)
         check_source = partial(check_reaction, check_message=source_reply, ok_reactions=["👍"])
         try:
             reaction, user = await client.wait_for('reaction_add', timeout=600.0, check=check_source)
@@ -141,7 +142,7 @@ async def on_message(message):
         selection_text, player_select, emoji_select, special_cases = match_emoji(pu_players, emoji_dict, special_cases_dict=special_cases_dict, multiple_choice=True)
         text = "Please Choose Players:\n" + selection_text
 
-        players_reply = await send_selection_message(text, emoji_select, special_cases=special_cases, reference=message, multiple_choice=True)
+        players_reply = await send_selection_message(channel, text, emoji_select, special_cases=special_cases, reference=message, multiple_choice=True)
         check_players = partial(check_reaction, check_message=players_reply, ok_reactions=["👍"])
         try:
             reaction, user = await client.wait_for('reaction_add', timeout=600.0, check=check_players)
@@ -156,7 +157,7 @@ async def on_message(message):
         picked_players = {p.display_name for p in picked_players_from_reply if not isinstance(p,str) and p != "Add Players Manually"}
         if "Add Players Manually" in  picked_players_from_reply:
             text = "To add players, type their names separated by ,without spaces(example: name1,name2,name3) as a reply to this message\n"
-            add_reply = await send_selection_message(text, [], reference=message)
+            add_reply = await send_selection_message(channel, text, [], reference=message)
             check_add_players_msg = partial(check_msg, check_message=add_reply)
             try:
                 msg = await client.wait_for('message', timeout=600.0, check=check_add_players_msg)
@@ -178,7 +179,7 @@ async def on_message(message):
             selection_text, player_select, emoji_select, special_cases = match_emoji(picked_players, emoji_dict, multiple_choice=True)
             text += selection_text
 
-            remove_players_reply = await send_selection_message(text, emoji_select, reference=message, multiple_choice=True)
+            remove_players_reply = await send_selection_message(channel, text, emoji_select, reference=message, multiple_choice=True)
             check_remove_players = partial(check_reaction, check_message=remove_players_reply, ok_reactions=["👍"])
             try:
                 reaction, user = await client.wait_for('reaction_add', timeout=600.0, check=check_remove_players)
@@ -194,7 +195,7 @@ async def on_message(message):
             selection_text, balance_select, emoji_select, special_cases = match_emoji(team_balance_options, emoji_dict)
             text += selection_text
 
-            team_balance_reply = await send_selection_message(text, emoji_select, reference=message)
+            team_balance_reply = await send_selection_message(channel, text, emoji_select, reference=message)
             check_team_balance = partial(check_reaction, check_message=team_balance_reply, ok_reactions=emoji_select)
             try:
                 reaction, user = await client.wait_for('reaction_add', timeout=600.0, check=check_team_balance)
