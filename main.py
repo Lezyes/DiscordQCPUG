@@ -48,7 +48,7 @@ async def on_message(message):
             for i in range(len(l)*2):
                 r = randint(0, len(l)-1)
                 l.append(l.pop(r))
-            return l
+            return l[0::2],l[1::2]
 
         def match_emoji(selection_dict, emoji_dict, special_cases_dict=None, multiple_choice=False):
             selection_select = {}
@@ -165,6 +165,10 @@ async def on_message(message):
                 picked_players.add(p)
 
         # remove players
+        if len(picked_players) >= 20:
+            text = "I am sorry but there are too many players ({}>=20) for me to handle right now (reaction limit per message is 20)".format(len(picked_players))
+            reply = await message.channel.send(text, reference=message)
+            return 0
         while len(picked_players) > 8:
             text = 'There are {} players in the list, please remove the extra fat ({} players):\n'.format(len(picked_players), len(picked_players)-8)
             selection_text, player_select, emoji_select, special_cases = match_emoji(picked_players, emoji_dict, multiple_choice=True)
@@ -196,14 +200,7 @@ async def on_message(message):
         else:
             balance_func = list(team_balance_options.values())[0]
 
-        picked_players = balance_func(list(picked_players))
-        team1 = []
-        team2 = []
-        for i,p in enumerate(picked_players):
-            if i>=len(picked_players)//2:
-                team2.append(p)
-            else:
-                team1.append(p)
+        team1,team2 = balance_func(list(picked_players))
         team1 = ", ".join(team1)
         team2 = ", ".join(team2)
         await channel.send(f"Team 1:{team1}\nTeam 2:{team2} ")
