@@ -132,6 +132,7 @@ async def on_message(message):
             await channel.send('You waited too long, please try again :D ')
             return 0
         sources_from_reply = await collect_reactions(source_reply, emoji_select, author, special_cases)
+        await source_reply.delete()
         pu_players = {player for source in sources_from_reply for player in players[source]}
        
         # select players
@@ -151,18 +152,21 @@ async def on_message(message):
         # collect selected players
         #Speical case for picking "All" shouldn't include "pick manually" 
         picked_players_from_reply = await collect_reactions(players_reply, emoji_select, author, special_cases)
+        await players_reply.delete()
         picked_players = {p.display_name for p in picked_players_from_reply if not isinstance(p,str) and p != "Add Players Manually"}
         if "Add Players Manually" in  picked_players_from_reply:
             text = "To add players, type their names separated by ,without spaces(example: name1,name2,name3) as a reply to this message\n"
             add_reply = await send_selection_message(text, [], reference=message)
-            check_msg = partial(check_msg, check_message=add_reply)
+            check_add_players_msg = partial(check_msg, check_message=add_reply)
             try:
-                msg = await client.wait_for('message', timeout=600.0, check=check_msg)
+                msg = await client.wait_for('message', timeout=600.0, check=check_add_players_msg)
             except TimeoutError:
                 await channel.send('You waited too long, please try again :D ')
                 return 0
             for p in msg.content.split(","):
                 picked_players.add(p)
+            await add_reply.delete()
+            await msg.delete()
 
         # remove players
         if len(picked_players) >= 20:
@@ -182,6 +186,7 @@ async def on_message(message):
                 await channel.send('You waited too long, please try again :D ')
                 return 0
             picked_players_to_remove_from_reply = await collect_reactions(remove_players_reply, emoji_select, author)
+            await remove_players_reply.delete()
             picked_players = {p for p in picked_players if p not in picked_players_to_remove_from_reply}
 
         if len(team_balance_options) > 1:
@@ -204,6 +209,6 @@ async def on_message(message):
         team1 = ", ".join(team1)
         team2 = ", ".join(team2)
         await channel.send(f"Team 1:{team1}\nTeam 2:{team2} ")
-
+        await message.delete()
 
 client.run(token)
