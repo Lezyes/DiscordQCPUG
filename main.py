@@ -72,13 +72,13 @@ async def on_message(message):
                 text += f"Finished: 👍\n"
             return text, selection_select, emoji_select, special_cases
 
-        async def collect_reactions(reply, emoji_select, special_cases = None):
+        async def collect_reactions(reply, emoji_select, author, special_cases = None):
             # kinda slow?
             reply = await reply.channel.fetch_message(reply.id)
             picked_selection = set()
             for reaction in reply.reactions:
                 for user in await reaction.users().flatten():
-                    if message.author == user:
+                    if user == author:
                         if special_cases and reaction.emoji in special_cases:
                             picked_selection = special_cases.get(reaction.emoji,{}).get("func", lambda x: x[0])(
                                                                             {"picked_selection":picked_selection,
@@ -105,7 +105,7 @@ async def on_message(message):
             return user == message.author and msg.reference.message_id == check_message.id
 
         team_balance_options = {"Random": shuffle_list}
-
+        author = message.author
         guild = message.guild
         channel = message.channel
         roles = guilds_roles.get(guild.id, {}).get("roles")
@@ -131,19 +131,9 @@ async def on_message(message):
         except TimeoutError:
             await channel.send('You waited too long, please try again :D ')
             return 0
-        sources_from_reply = await collect_reactions(source_reply, emoji_select,special_cases)
-        print(source_reply)
+        sources_from_reply = await collect_reactions(source_reply, emoji_select, author, special_cases)
         pu_players = {player for source in sources_from_reply for player in players[source]}
-        print(pu_players)
-        # collect players from source
-        # pu_players = set()
-        # if source == "All":
-        #     for s in players:
-        #         for player in players[s]:
-        #             pu_players.add(player)
-        # else:
-        #     pu_players = set([player for player in players[source]])
-
+       
         # select players
         special_cases_dict = {"All": lambda x: set(x.get("emoji_select", {}).values()),
                               "Add Players Manually": lambda x: x.get("picked_selection", set()).union(["Add Players Manually"])}
@@ -160,8 +150,7 @@ async def on_message(message):
 
         # collect selected players
         #Speical case for picking "All" shouldn't include "pick manually" 
-        picked_players_from_reply = await collect_reactions(players_reply, emoji_select,special_cases)
-        print(picked_players_from_reply)
+        picked_players_from_reply = await collect_reactions(players_reply, emoji_select, author, special_cases)
         picked_players = {p.display_name for p in picked_players_from_reply if not isinstance(p,str) and p != "Add Players Manually"}
         if "Add Players Manually" in  picked_players_from_reply:
             text = "To add players, type their names separated by ,without spaces(example: name1,name2,name3) as a reply to this message\n"
@@ -177,10 +166,9 @@ async def on_message(message):
 
         # remove players
         while len(picked_players) > 8:
-            text = 'You picked more than 8 players, please remove the extra fat:\n'
+            text = 'There are {} players in the list, please remove the extra fat ({} players):\n'.format(len(picked_players), len(picked_players)-8)
             selection_text, player_select, emoji_select, special_cases = match_emoji(picked_players, emoji_dict, multiple_choice=True)
             text += selection_text
-
 
             remove_players_reply = await send_selection_message(text, emoji_select, reference=message, multiple_choice=True)
             check_remove_players = partial(check_reaction, check_message=remove_players_reply, ok_reactions=["👍"])
@@ -189,9 +177,8 @@ async def on_message(message):
             except TimeoutError:
                 await channel.send('You waited too long, please try again :D ')
                 return 0
-            picked_players_to_remove_from_reply = await collect_reactions(players_reply, emoji_select)
-            picked_players_to_remove = {p.display_name for p in picked_players_to_remove_from_reply}
-            picked_players = {p for p in picked_players if p not in picked_players_to_remove}
+            picked_players_to_remove_from_reply = await collect_reactions(remove_players_reply, emoji_select, author)
+            picked_players = {p for p in picked_players if p not in picked_players_to_remove_from_reply}
 
         if len(team_balance_options) > 1:
             text = 'How do you wish to balance teams?\n'
