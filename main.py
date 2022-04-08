@@ -50,9 +50,10 @@ async def on_message(message):
                 l.append(l.pop(r))
             return l
 
-        def match_emoji(selection_dict, emoji_dict, add_all_option=False):
+        def match_emoji(selection_dict, emoji_dict, special_cases_dict=None):
             selection_select = {}
             emoji_select = {}
+            special_cases = {}
             text = ""
             emoji_options = list(emoji_dict.values())
             for i, selection in enumerate(selection_dict):
@@ -60,31 +61,26 @@ async def on_message(message):
                 selection_select[selection] = emoji
                 emoji_select[emoji] = selection
                 text += f"{selection}: {emoji}\n"
-            if add_all_option:
-                i += 1
-                selection = "All"
-                emoji = emoji_options[i]
-                selection_select[selection] = emoji
-                emoji_select[emoji] = selection
-                text += f"{selection}: {emoji}\n"
-            return text, selection_select, emoji_select
+            if special_cases_dict:
+                for selection in special_cases_dict:
+                    i += 1
+                    emoji = emoji_options[i]
+                    selection_select[selection] = emoji
+                    special_cases[emoji] = {"name":selection, "func":special_cases_dict[selection]}
+                    text += f"{selection}: {emoji}\n"
+            return text, selection_select, emoji_select, special_cases
 
         async def collect_reactions(reply, emoji_select, special_cases = None):
             # kinda slow?
             reply = await reply.channel.fetch_message(reply.id)
-            picked_reactions = set()
             picked_selection = set()
             for reaction in reply.reactions:
-                if reaction.emoji != "👍":
-                    for user in await reaction.users().flatten():
-                        if message.author == user:
-                            picked_reactions.add(reaction.emoji)
-                            if emoji_select.get(reaction.emoji) == "All":
-                                picked_selection = set([emoji_select[emoji] for emoji in emoji_select if emoji_select[emoji] != "All"])
-                                break
-                            break
-            if not picked_selection:
-                picked_selection = set([emoji_select[emoji] for emoji in picked_reactions])
+                for user in await reaction.users().flatten():
+                    if message.author == user:
+                        if special_cases and reaction.emoji in special_cases:
+                            picked_selection = special_cases.get(reaction.emoji, lambda x: x[0])(picked_selection, emoji_select)
+                        elif reaction.emoji in emoji_select:
+                            picked_selection.add(emoji_select.get(reaction.emoji))
             return picked_selection
 
         async def send_selection_message(text, emoji_select, reference=None):
@@ -117,7 +113,8 @@ async def on_message(message):
 
         # select source
         text = "Please Choose Player source:\n"
-        selection_text, source_select, emoji_select = match_emoji(players, emoji_dict, add_all_option=True)
+        special_cases_dict["All"] = lambda x:set(x.get("emoji_select",{}).values())
+        selection_text, source_select, emoji_select, special_cases = match_emoji(players, emoji_dict, special_cases_dict=special_cases_dict)
         text += selection_text
         source_reply = await send_selection_message(text, emoji_select, reference=message)
         check_source = partial(check_reaction, check_message=source_reply, ok_reactions=emoji_select)
@@ -139,13 +136,15 @@ async def on_message(message):
 
         # select players
         text = "Please Choose Players:\n"
-        selection_text, player_select, emoji_select = match_emoji(pu_players, emoji_dict, add_all_option=True)
+        special_cases = {}
+        special_cases_dict["All"] = lambda x:set(x.get("emoji_select",{}).values())
+        special_cases_dict["Add Players Manually"] = lambda x: x.get("picked_selection",set()).union(["Add Players Manually"])
+        selection_text, player_select, emoji_select, special_cases = match_emoji(pu_players, emoji_dict, special_cases_dict=special_cases_dict)
         text += selection_text
-        text += f"Add Players Manually: ✍️\n"
         text += f"Finished: 👍\n"
 
         players_reply = await send_selection_message(text, emoji_select, reference=message)
-        emoji_select["✍️"] = "Add Players Manually"
+        
         await players_reply.add_reaction("✍️")
         await players_reply.add_reaction("👍")
         check_players = partial(check_reaction, check_message=players_reply, ok_reactions=["👍"])
@@ -157,7 +156,7 @@ async def on_message(message):
 
         # collect selected players
         #Speical case for picking "All" shouldn't include "pick manually" 
-        picked_players_from_reply = await collect_reactions(players_reply, emoji_select)
+        picked_players_from_reply = await collect_reactions(players_reply, emoji_select,special_cases)
         print(picked_players_from_reply)
         picked_players = {p.display_name for p in picked_players_from_reply if not isinstance(p,str) and p != "Add Players Manually"}
         if "Add Players Manually" in  picked_players_from_reply:
@@ -175,7 +174,7 @@ async def on_message(message):
         # remove players
         while len(picked_players) > 8:
             text = 'You picked more than 8 players, please remove the extra fat:\n'
-            selection_text, player_select, emoji_select = match_emoji(picked_players, emoji_dict, add_all_option=False)
+            selection_text, player_select, emoji_select, special_cases = match_emoji(picked_players, emoji_dict)
             text += selection_text
             text += f"Finished: 👍\n"
 
@@ -193,7 +192,7 @@ async def on_message(message):
 
         if len(team_balance_options) > 1:
             text = 'How do you wish to balance teams?\n'
-            selection_text, balance_select, emoji_select = match_emoji(team_balance_options, emoji_dict, add_all_option=False)
+            selection_text, balance_select, emoji_select, special_cases = match_emoji(team_balance_options, emoji_dict)
             text += selection_text
 
             team_balance_reply = await send_selection_message(text, emoji_select, reference=message)
