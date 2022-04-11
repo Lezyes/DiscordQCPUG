@@ -52,7 +52,7 @@ async def on_message(message):
         else:
             monday = today
         monday = datetime.datetime.fromisoformat(monday.isoformat())
-        monday_quake = monday+ datetime.timedelta(hours=22, )
+        monday_quake = monday+ datetime.timedelta(hours=19, )
         ts = int(monday_quake.timestamp())
         await message.channel.send(f"<t:{ts}:R>")
     # if starting pug
