@@ -6,6 +6,8 @@ from text_to_emojis import emoji_dict
 from functools import partial
 from random import randint
 from asyncio import TimeoutError
+import datetime
+
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -42,6 +44,11 @@ async def on_reaction_add(reaction, user):
 
 @client.event
 async def on_message(message):
+    print("test: ",message.content)
+    if message.content.startswith('$tr'):
+        today = datetime.date.today()
+        monday = today + datetime.timedelta(days=-today.weekday(), weeks=1)
+        print(monday)
     # if starting pug
     if message.content.startswith('$pickup') or message.content.startswith('$pu'):
         def shuffle_list(l):
