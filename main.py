@@ -44,11 +44,17 @@ async def on_reaction_add(reaction, user):
 
 @client.event
 async def on_message(message):
-    print("test: ",message.content)
+    message = await message.channel.fetch_message(message.id)
     if message.content.startswith('$tr'):
         today = datetime.date.today()
-        monday = today + datetime.timedelta(days=-today.weekday(), weeks=1)
-        print(monday)
+        if not today.weekday()==0:
+            monday = today + datetime.timedelta(days=-today.weekday(), weeks=1)
+        else:
+            monday = today
+        monday = datetime.datetime.fromisoformat(monday.isoformat())
+        monday_quake = monday+ datetime.timedelta(hours=22, )
+        ts = int(monday_quake.timestamp())
+        await message.channel.send(f"<t:{ts}:R>")
     # if starting pug
     if message.content.startswith('$pickup') or message.content.startswith('$pu'):
         def shuffle_list(l):
