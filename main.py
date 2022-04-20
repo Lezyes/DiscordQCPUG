@@ -281,38 +281,16 @@ async def on_message(ctx):
 
         await players_source(data_dict)
 
-
-
-@bot.command(description="Starts a PUG")
-async def pu(ctx):
-    team_balance_options = {"Random": shuffle_list}
-    author = ctx.interaction.user
-    guild = ctx.interaction.guild
-    channel = ctx.interaction.channel
-    roles = guilds_roles.get(guild.id, {}).get("roles")
-    channels = guilds_roles.get(guild.id, {}).get("channels")
-    # get players from channels
-    players = {}
-    for role in guild.roles:
-        if role.id in roles:
-            players[role.name] = role.members
-    for guild_channel in guild.channels:
-        if guild_channel.id in channels:
-            players[guild_channel.name] = guild_channel.members
-    await ctx.respond(f"Pong! Latency is {bot.latency}")
-
-
-# this decorator makes a slash command
-@bot.slash_command(description="Sends the bot's latency.")
-async def ping(ctx):  # a slash command will be created with the name "ping"
-    await ctx.respond(f"Pong! Latency is {bot.latency}")
-
-
-@bot.slash_command()
-async def modal_slash(ctx: discord.ApplicationContext):
-    """Shows an example of a modal dialog being invoked from a slash command."""
-    modal = MyModal(title="Modal via Slash Command")
-    await ctx.send_modal(modal)
+    elif message.content.startswith('$tr'):
+        today = datetime.date.today()
+        if not today.weekday()==0:
+            monday = today + datetime.timedelta(days=-today.weekday(), weeks=1)
+        else:
+            monday = today
+        monday = datetime.datetime.fromisoformat(monday.isoformat())
+        monday_quake = monday+ datetime.timedelta(hours=19, )
+        ts = int(monday_quake.timestamp())
+        await message.channel.send(f"<t:{ts}:R>")
 
 
 bot.run(token)

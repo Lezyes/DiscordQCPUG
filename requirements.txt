@@ -1,1 +1,1 @@
-py-cord==pre
+py-cord==2.0.0b7
