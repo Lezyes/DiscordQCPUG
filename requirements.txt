@@ -1,1 +1,2 @@
 py-cord==2.0.0b7
+pytest==7.1.1
