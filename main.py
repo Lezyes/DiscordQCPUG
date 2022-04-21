@@ -56,7 +56,7 @@ async def on_message(ctx):
     else:
         return 0
     # if starting pug
-    if message.content.startswith('$') or message.content.startswith('$pu'):
+    if message.content.startswith('$pickup') or message.content.startswith('$pu'):
         await start_pickup(message)
     elif message.content.startswith('$tr'):
         await time_to_next_quake_monday(message)
