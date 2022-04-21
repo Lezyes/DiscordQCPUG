@@ -119,7 +119,7 @@ class SelectView(discord.ui.View):
             if sub_list:
                 sub_dict = {k: selection_options[k] for k in sub_list}
                 self.add_item(Dropdown(sub_dict))
-
+        # Adds the buttons to our view object.
         for button in data_dict["buttons"].get(data_dict["current_stage"], []):
             self.add_item(SelectionGenericButton(data_dict=data_dict, 
                                                  **button))
@@ -162,9 +162,6 @@ async def add_players_manually(self, interaction, data_dict):
                                                           original_view = self.view, 
                                                           original_interaction = interaction))
     
-
-    # msg = interaction.message
-    # await msg.edit(view = self.view)
 
 
 async def players_source(data_dict):
