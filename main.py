@@ -6,7 +6,7 @@ import datetime
 from functools import partial
 from asyncio import TimeoutError
 from secret import token
-from pickup import start_pickup
+from pickup import start_pickup, register_player
 
 
 logging.basicConfig(level=logging.WARNING)
@@ -56,9 +56,13 @@ async def on_message(ctx):
     else:
         return 0
     # if starting pug
-    if message.content.startswith('$pickup') or message.content.startswith('$pu'):
-        await start_pickup(message)
-    elif message.content.startswith('$tr'):
-        await time_to_next_quake_monday(message)
-
+    command_dict = {
+                "$pickup":{"func":start_pickup, "description":"Start a Pickup"},
+                "$pu":{"func":start_pickup, "description":"Start a Pickup"},
+                "$tr":{"func":time_to_next_quake_monday, "description":"Post how much time untill next monday quake night"},
+                "$reg":{"func":register_player, "description":"Register quake name"},
+                "$register":{"func":register_player, "description":"Register quake name"},
+                    }
+    return [await cmd["func"](message) for option,cmd in command_dict.items() if message.content.startswith(option)]
+    
 bot.run(token)

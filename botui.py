@@ -1,36 +1,5 @@
 import discord
 
-class AddPlayersModal(discord.ui.Modal):
-    def __init__(self, data_dict, original_view, original_interaction, *args, **kwargs) -> None:
-        self.data_dict = data_dict
-        self.original_view = original_view
-        self.current_stage = data_dict["current_stage"]
-        self.original_interaction = original_interaction
-        super().__init__(title = "Add Players Manually",*args, **kwargs)
-        for i in range(5):
-            self.add_item(discord.ui.InputText(label="Player Name",
-                                               required = False))
-
-    async def callback(self, interaction: discord.Interaction):
-        embed = discord.Embed(title="Your Modal Results", color=discord.Color.random())
-        data_dict = self.data_dict
-        original_interaction = self.original_interaction
-        players = set()
-        for child in self.children:
-            if child.value:
-                players.add(child.value)
-        
-        new_players = players.difference(data_dict["players"])
-        data_dict["players"] = data_dict["players"].union(new_players)
-        data_dict["selections"][self.current_stage] = new_players.union([child_interface.label for 
-                                                          child_interface in self.original_view.children
-                                                          if isinstance(child_interface, discord.ui.Button)
-                                                          and child_interface.style==discord.ButtonStyle.primary])
-        msg = self.original_interaction.message
-        await msg.delete()
-        await pick_players(data_dict)
-        await interaction.response.send_message(embeds=[embed], delete_after = 0)
-
 class SelectionGenericButton(discord.ui.Button):
     def __init__(self, data_dict, callback_func, label=None, style = None, original_user_only = True):
         if not style:
