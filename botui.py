@@ -32,7 +32,7 @@ class AddPlayersModal(discord.ui.Modal):
         await interaction.response.send_message(embeds=[embed], delete_after = 0)
 
 class SelectionGenericButton(discord.ui.Button):
-    def __init__(self, data_dict, callback_func, label=None, style = None):
+    def __init__(self, data_dict, callback_func, label=None, style = None, original_user_only = True):
         if not style:
             style = discord.ButtonStyle.success
         if not label:
@@ -40,12 +40,14 @@ class SelectionGenericButton(discord.ui.Button):
         self.data_dict = data_dict
         self.current_stage = data_dict["current_stage"]
         self.callback_func = callback_func
+        self.original_user_only = original_user_only
         super().__init__(
             label=label,
             style=style,
         )
     async def callback(self, interaction):
-        await self.callback_func(self, interaction, self.data_dict)
+        if not self.original_user_only or interaction.user.id == self.data_dict["author"].id:
+            await self.callback_func(self, interaction, self.data_dict)
 
 class Dropdown(discord.ui.Select):
     def __init__(self, options, title="Pick your pick"):
@@ -75,7 +77,7 @@ class SelectView(discord.ui.View):
             self.add_item(SelectionGenericButton(data_dict=data_dict, 
                                                  **button))
 
-
+#callback functions
 async def button_pressed(self, interaction, data_dict):
     self.style = discord.ButtonStyle.secondary if self.style==discord.ButtonStyle.primary else discord.ButtonStyle.primary
     msg = interaction.message
