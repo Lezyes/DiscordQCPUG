@@ -5,11 +5,34 @@ from random import randint
 import json
 import requests
 
-def shuffle_list(l):
+
+async def shuffle_list(players_elo):
+    l = list(players_elo.keys())
     for i in range(len(l) * 2):
         r = randint(0, len(l) - 1)
         l.append(l.pop(r))
     return l[0::2], l[1::2]
+
+async def pick_from_top(players_elo):
+    soreted_by_elo = sorted(players_elo.items(), key=lambda x:x[1], reverse=True)
+    return soreted_by_elo[0::2], soreted_by_elo[1::2]
+
+async def weighted_player_allocation(players_elo):
+    soreted_by_elo = sorted(players_elo.items(), key=lambda x:x[1], reverse=True)
+    team1_options = sorted([(comb, abs(elo_sum/2-sum((player[1] 
+                                               for player in comb)))) 
+                             for comb in itertools.combinations(soreted_by_elo, 3) 
+                             if soreted_by_elo[0] in comb],
+                           key=lambda x:x[1])
+    winning_score = team1_options[0][1]
+    team1_options = [comb[0] for comb in team1_options if comb[1]==winning_score]
+    if len(team1_options)>1:
+        team1_options = sorted({team1_option:{sum([abs(v[1]-np.mean([p[1] for p in team1_option]))**2 
+                            for v in team1_option])} 
+                         for team1_option in team1_options}.items(), lambda x:x[1])
+    team1 = {player[0] for player in team1_options[0]}
+    team2 = {player[0] for player in soreted_by_elo if player[0] not in team1}
+    return team1,team2
 
 async def get_player_stats(player_tag):
     url = f"https://quake-stats.bethesda.net/api/v2/Player/Stats?name={player_tag}"
@@ -36,7 +59,7 @@ class InputModal(discord.ui.Modal):
 async def get_player_name_input_callback(self, interaction: discord.Interaction):
     embed = discord.Embed(title="Your Modal Results", color=discord.Color.random())
     data_dict = self.data_dict
-    player_name = self.children[0].value
+    player_name = self.children[0].value.lower()
     data_dict["player_data"]["quake_name"] = player_name
     jdb = data_dict["db"].json()
     jdb.set("dcid", ".{}.quake_name".format(data_dict["author"].id), player_name)
@@ -87,7 +110,15 @@ async def players_source(data_dict):
 
 
 def players_from_selection(data_dict):
-    return data_dict.get("players", set()).union({m.display_name for v in data_dict["selections"]["players_source"].values() for m in v.members})
+    names = set()
+    for v in data_dict["selections"]["players_source"].values() :
+        for m in v.members:
+            player_name = data_dict["db"].json().get("dcid", "$.{}.quake_name".format(m.id))
+            if player_name:
+                names.add(player_name)
+            else:
+                names.add(m.display_name)
+    return data_dict.get("players", set()).union(names)
 
 
 async def pick_players(data_dict):
@@ -124,6 +155,7 @@ async def choose_balance_func(data_dict):
     data_dict["current_stage"] = "choose_balance_func"
     players = data_dict["selections"]["pick_players"]
     if len(data_dict["team_balance_options"]) > 1:
+        
         pass
     else:
         data_dict["balance_func"] = list(
@@ -134,9 +166,9 @@ async def choose_balance_func(data_dict):
 async def assign_players(data_dict):
     current_stage = "assign_players"
     players = data_dict["selections"]["pick_players"]
-
+    players_elo = {player: for}
     balance_func = data_dict["balance_func"]
-    team1, team2 = balance_func(list(players))
+    team1, team2 = await balance_func(list(players))
 
     team1 = ", ".join(team1)
     team2 = ", ".join(team2)
@@ -146,7 +178,7 @@ async def assign_players(data_dict):
     await data_dict["message"].delete()
 
 
-async def start_pickup(message):
+async def start_pickup(message, db):
     thread = await message.create_thread(name="Pickup Organizer", auto_archive_duration=60)
     team_balance_options = {"Random": shuffle_list}
     author = message.author
@@ -161,6 +193,7 @@ async def start_pickup(message):
         "author": author,
         "guild": guild,
         "channel": channel,
+        "db": db,
         "roles": roles,
         "channels": channels,
         "selected_players": set(),
@@ -185,15 +218,46 @@ async def start_pickup(message):
     await players_source(data_dict)
 
 
+def mode_stats(player_stats, game_mode):
+    champ_stats = {}
+    objective_modes = ['GameModeObelisk', 'GameModeObeliskPro', 'GameModeCtf']
+    killing_modes = ['GameModeFFA', 'GameModeTeamDeathmatch', 'GameModeDuel',  'GameModeTeamDeathmatch2vs2', 
+                     'GameModeInstagib','GameModeDuelPro', 'GameModeSlipgate']
+    for champ, champ_data in player_stats["playerProfileStats"]["champions"].items():
+        champ_mode_data = champ_data["gameModes"][game_mode]
+        champ_stats[champ] = {
+            "games_count": champ_mode_data["won"] + champ_mode_data["lost"] + champ_mode_data["tie"],
+            "kills": champ_mode_data["kills"], 
+            "deaths": champ_mode_data["deaths"], 
+            "wins": champ_mode_data["won"],
+            "life_time": champ_mode_data["lifeTime"],
+            "score": champ_mode_data["score"],}
+    game_mode_stats = {k:sum([champ_stats[champ][k] for champ in champ_stats]) 
+                     for k in ["games_count","life_time", "wins","score", "kills", "deaths"]}
+    if game_mode in objective_modes:
+        game_mode_stats["win_ratio"] = game_mode_stats["wins"]/max(1,game_mode_stats["games_count"])
+    else:
+        game_mode_stats["win_ratio"] = game_mode_stats["kills"]/max(1,game_mode_stats["kills"]+ game_mode_stats["deaths"])
+    game_mode_stats["avg_score"] = game_mode_stats["score"]/max(1,game_mode_stats["games_count"])
+    game_mode_stats["avg_score_per_minute"] = game_mode_stats["score"]/max(1,game_mode_stats["life_time"]/1000/60)
+    game_mode_stats["mode_avg_score"] = game_mode_stats["avg_score"]/max(1,game_mode_stats["avg_score_per_minute"])
+    game_mode_stats["mode_score"] = game_mode_stats["mode_avg_score"]*game_mode_stats["win_ratio"]
+    return game_mode_stats
+
+def mode_elo(player_stats, game_mode):
+    game_mode_stats = mode_stats(player_stats,game_mode)
+    return game_mode_stats["mode_score"]
+
+    
+
+
 async def calc_elos(data_dict):
     db = data_dict["db"]
-
-
-
-
-
-
-
+    jdb = db.json()
+    quake_name = data_dict["player_data"]["quake_name"]
+    game_modes = ['GameModeFFA', 'GameModeTeamDeathmatch', 'GameModeDuel', 'GameModeObelisk', 'GameModeObeliskPro', 'GameModeTeamDeathmatch2vs2', 'GameModeInstagib', 'GameModeDuelPro', 'GameModeSlipgate', 'GameModeCtf']
+    elos = {mode:mode_elo(data_dict["qcstats"], mode) for mode in game_modes}
+    jdb.set("qcelo", ".{}".format(quake_name), elos)
     db.save()
     
 

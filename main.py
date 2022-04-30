@@ -10,6 +10,10 @@ from pickup import start_pickup, register_player
 
 
 db = redis.Redis(host='localhost', port=6379, db=0)
+for k in ["dcid","qcstats","qcelo"]:
+    if not db.exists(k):
+        db.json().set(k, '$', {})
+
 logging.basicConfig(level=logging.WARNING)
 
 # intents = discord.Intents.all()
@@ -49,8 +53,8 @@ async def on_message(ctx):
         return 0
     # if starting pug
     command_dict = {
-                "$pickup":{"func":start_pickup, "description":"Start a Pickup"},
-                "$pu":{"func":start_pickup, "description":"Start a Pickup"},
+                "$pickup":{"func":partial(start_pickup, db=db), "description":"Start a Pickup"},
+                "$pu":{"func":partial(start_pickup, db=db), "description":"Start a Pickup"},
                 "$tr":{"func":time_to_next_quake_monday, "description":"Post how much time untill next monday quake night"},
                 "$reg":{"func":partial(register_player, db = db), "description":"Register quake name"},
                 "$register":{"func":partial(register_player, db = db), "description":"Register quake name"},
