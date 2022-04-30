@@ -4,6 +4,7 @@ from guild_games_roles import guilds_roles
 from random import randint
 import json
 import requests
+from itertools import combinations
 
 
 async def shuffle_list(players_elo):
@@ -15,23 +16,45 @@ async def shuffle_list(players_elo):
 
 async def pick_from_top(players_elo):
     soreted_by_elo = sorted(players_elo.items(), key=lambda x:x[1], reverse=True)
-    return soreted_by_elo[0::2], soreted_by_elo[1::2]
+    team1_elos = soreted_by_elo[0::2] 
+    team2_elos = soreted_by_elo[1::2]
+    team1 = [p[0] for p in team1_elos]
+    team1.append("Total ELO: {}".format(sum([p[1] for p in team1_elos])))
+    team2 = [p[0] for p in team2_elos]
+    team2.append("Total ELO: {}".format(sum([p[1] for p in team2_elos])))
+    return team1, team2
 
 async def weighted_player_allocation(players_elo):
     soreted_by_elo = sorted(players_elo.items(), key=lambda x:x[1], reverse=True)
+    elo_sum = sum(players_elo.values())
     team1_options = sorted([(comb, abs(elo_sum/2-sum((player[1] 
                                                for player in comb)))) 
-                             for comb in itertools.combinations(soreted_by_elo, 3) 
+                             for comb in combinations(soreted_by_elo, 3) 
                              if soreted_by_elo[0] in comb],
                            key=lambda x:x[1])
     winning_score = team1_options[0][1]
     team1_options = [comb[0] for comb in team1_options if comb[1]==winning_score]
-    if len(team1_options)>1:
-        team1_options = sorted({team1_option:{sum([abs(v[1]-np.mean([p[1] for p in team1_option]))**2 
-                            for v in team1_option])} 
-                         for team1_option in team1_options}.items(), lambda x:x[1])
-    team1 = {player[0] for player in team1_options[0]}
-    team2 = {player[0] for player in soreted_by_elo if player[0] not in team1}
+    # if len(team1_options)>1:
+    team1_elo = {p[0]:players_elo[p[0]] for p in team1_options[randint(0,len(team1_options)-1)]}
+    team2_elo = {p:v for p,v in players_elo.items() if p not in team1_elo }
+    team1 = list(team1_elo.keys())
+    team2 = list(team2_elo.keys())
+
+    #     teams_elo_weight = {}
+    #     for team1_option in team1_options:
+    #         team_elo_mean = np.mean([p[1] for p in team1_option])
+    #         teams_elo_weight[team1_option] = sum([abs(v[1]-team_elo_mean)**2 for v in team1_option])
+    #     team1_options = sorted(teams_elo_weight.items(),key = lambda x:x[1])
+    #     winning_score = team1_options[0][1]
+    #     team1_options = [comb[0] for comb in team1_options if comb[1]==winning_score]
+    #     if len(team1_options)>1:
+    #         team1 = team1_options[randint(0,len(team1_options)-1)][0]
+    #     else:
+    #         team1 = team1_options[0][0]
+    # else:
+    #     team1 = [player[0] for player in team1_options[0]]
+    team1.append("Total ELO: {}".format(sum([v for v in team1_elo.values()])))
+    team2.append("Total ELO: {}".format(sum([v for v in team2_elo.values()])))
     return team1,team2
 
 async def get_player_stats(player_tag):
@@ -101,7 +124,7 @@ async def players_source(data_dict):
     data_dict["buttons"][current_stage].append({
         "callback_func": selection_all,
         "label": "Select All",
-        "style": discord.ButtonStyle.primary})
+        "style": discord.ButtonStyle.danger})
     data_dict["buttons"][current_stage].append({
         "callback_func": collect_selection_finish,
         "label": "Continue With Current Selection",
@@ -115,7 +138,7 @@ def players_from_selection(data_dict):
         for m in v.members:
             player_name = data_dict["db"].json().get("dcid", "$.{}.quake_name".format(m.id))
             if player_name:
-                names.add(player_name)
+                names.add(player_name[0])
             else:
                 names.add(m.display_name)
     return data_dict.get("players", set()).union(names)
@@ -155,8 +178,16 @@ async def choose_balance_func(data_dict):
     data_dict["current_stage"] = "choose_balance_func"
     players = data_dict["selections"]["pick_players"]
     if len(data_dict["team_balance_options"]) > 1:
-        
-        pass
+        game_modes = {"args":{"max_values":1},
+                    "options":{k:k for k in ['Sacrifice', 'Capture The Flag',"Slipgate", "Team Deathmatch", "2V2 TDM"]}}
+        balance_options = {"args":{"max_values":1},
+                    "options":data_dict["team_balance_options"]}
+        data_dict["dropdowns"][current_stage] = [game_modes,balance_options]
+        data_dict["buttons"][current_stage]=[{
+            "callback_func": collect_selection_finish,
+            "label": "Continue With Current Selection",
+            "style": discord.ButtonStyle.success}]
+        return await data_dict["thread"].send("Pick a game mode and Balance Option!", view=SelectView(data_dict))
     else:
         data_dict["balance_func"] = list(
             data_dict["team_balance_options"].values())[0]
@@ -165,29 +196,39 @@ async def choose_balance_func(data_dict):
 
 async def assign_players(data_dict):
     current_stage = "assign_players"
+    
+    jdb = data_dict["db"].json()
     players = data_dict["selections"]["pick_players"]
-    players_elo = {player: for}
-    balance_func = data_dict["balance_func"]
-    team1, team2 = await balance_func(list(players))
+    game_mode = [v for k,v in data_dict["selections"]["choose_balance_func"].items() if isinstance(v,str)][0]
+    balance_func = [v for k,v in data_dict["selections"]["choose_balance_func"].items() if not isinstance(v,str)][0]
+    players_elo = {}
+    for player_name in players:
+        player_elo_dict = jdb.get("qcelo", "$.{}".format(player_name))
+        player_elo_dict = player_elo_dict[0] if player_elo_dict else {}
+        player_elo  = player_elo_dict.get(game_mode,0) 
+        players_elo[player_name] = player_elo
+    
+    team1, team2 = await balance_func(players_elo)
 
     team1 = ", ".join(team1)
     team2 = ", ".join(team2)
     text = f"Team 1:{team1}\nTeam 2:{team2} "
     await data_dict["channel"].send(text)
-    # await data_dict["thread"].delete()
+    await data_dict["thread"].delete()
     await data_dict["message"].delete()
 
 
 async def start_pickup(message, db):
     thread = await message.create_thread(name="Pickup Organizer", auto_archive_duration=60)
-    team_balance_options = {"Random": shuffle_list}
     author = message.author
     guild = message.guild
     channel = message.channel
     roles = guilds_roles.get(guild.id, {}).get("roles")
     channels = guilds_roles.get(guild.id, {}).get("channels")
     data_dict = {
-        "team_balance_options": team_balance_options,
+        "team_balance_options": {"Random": shuffle_list, 
+                                 "Pick from top":pick_from_top, 
+                                 "ELO Balanced":weighted_player_allocation},
         "message": message,
         "thread": thread,
         "author": author,
@@ -248,15 +289,29 @@ def mode_elo(player_stats, game_mode):
     game_mode_stats = mode_stats(player_stats,game_mode)
     return game_mode_stats["mode_score"]
 
-    
-
-
 async def calc_elos(data_dict):
     db = data_dict["db"]
     jdb = db.json()
     quake_name = data_dict["player_data"]["quake_name"]
-    game_modes = ['GameModeFFA', 'GameModeTeamDeathmatch', 'GameModeDuel', 'GameModeObelisk', 'GameModeObeliskPro', 'GameModeTeamDeathmatch2vs2', 'GameModeInstagib', 'GameModeDuelPro', 'GameModeSlipgate', 'GameModeCtf']
-    elos = {mode:mode_elo(data_dict["qcstats"], mode) for mode in game_modes}
+    game_modes = {"Capture The Flag":'GameModeCtf',"Sacrifice":'GameModeObelisk', 
+    "Deathmatch":'GameModeFFA', "Team Deathmatch":'GameModeTeamDeathmatch', "Duel":'GameModeDuel',
+    "Instagib":'GameModeInstagib', "Slipgate":'GameModeSlipgate',
+    "Ranked Sacrifice":'GameModeObeliskPro', "Ranked Duel":'GameModeDuelPro',
+    "2V2 TDM":'GameModeTeamDeathmatch2vs2',
+     }
+    objective_modes = ['Capture The Flag', 'Sacrifice', 
+                        # 'Ranked Sacrifice'
+                        ]
+    killing_modes = ["Team Deathmatch","2V2 TDM", "Slipgate",
+                    # "Instagib", "Deathmatch", 
+                    # "Duel", "Ranked Duel"
+                    ]
+
+    elos = {name:mode_elo(data_dict["qcstats"], mode) for name,mode in game_modes.items()}
+    
+    elos["Objective"] = sum([v for k,v in elos.items() if k in objective_modes])/len(objective_modes)
+    elos["Killing"] = sum([v for k,v in elos.items() if k in killing_modes])/len(killing_modes)
+
     jdb.set("qcelo", ".{}".format(quake_name), elos)
     db.save()
     

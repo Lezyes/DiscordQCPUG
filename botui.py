@@ -19,7 +19,9 @@ class SelectionGenericButton(discord.ui.Button):
             await self.callback_func(self, interaction, self.data_dict)
 
 class Dropdown(discord.ui.Select):
-    def __init__(self, options, title="Pick your pick"):
+    def __init__(self, options, title="Pick your pick", max_values = None):
+        if max_values==None:
+            max_values = len(options)
         self.options_data = options
         select_options = [
             discord.SelectOption(label=option) for option in options
@@ -27,7 +29,7 @@ class Dropdown(discord.ui.Select):
         super().__init__(
             placeholder=title,
             min_values=1,
-            max_values=len(options),
+            max_values=max_values,
             options=select_options,
         )
 
@@ -36,11 +38,16 @@ class SelectView(discord.ui.View):
         super().__init__()
         # Adds the dropdown to our view object.
         selection_options = data_dict.get("dropdowns", {}).get(data_dict["current_stage"],{})
-        ol = list(selection_options.keys())
-        for sub_list in [ol[i * 5:(i + 1) * 5] for i in range(len(ol) // 5 + 1)]:
-            if sub_list:
-                sub_dict = {k: selection_options[k] for k in sub_list}
-                self.add_item(Dropdown(sub_dict))
+        if isinstance(selection_options,dict):
+            ol = list(selection_options.keys())
+            for sub_list in [ol[i * 5:(i + 1) * 5] for i in range(len(ol) // 5 + 1)]:
+                if sub_list:
+                    sub_dict = {k: selection_options[k] for k in sub_list}
+                    self.add_item(Dropdown(sub_dict))
+        elif isinstance(selection_options,list):
+            for dropdown_manu in selection_options:
+                self.add_item(Dropdown(dropdown_manu["options"], **dropdown_manu["args"]))
+
         # Adds the buttons to our view object.
         for button in data_dict.get("buttons",{}).get(data_dict["current_stage"], []):
             self.add_item(SelectionGenericButton(data_dict=data_dict, 
