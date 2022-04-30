@@ -2,20 +2,18 @@ import discord
 import logging
 
 import datetime
-
+import redis 
 from functools import partial
 from asyncio import TimeoutError
 from secret import token
 from pickup import start_pickup, register_player
 
 
+db = redis.Redis(host='localhost', port=6379, db=0)
 logging.basicConfig(level=logging.WARNING)
 
 # intents = discord.Intents.all()
-
-
 intents = discord.Intents.none()
-
 intents.guilds = True
 intents.members = True
 intents.voice_states = True
@@ -23,12 +21,6 @@ intents.messages = True
 intents.reactions = True
 
 bot = discord.Bot(intents=intents)
-
-async def get_player_stats(player_tag):
-    url = f"https://quake-stats.bethesda.net/api/v2/Player/Stats?name={player_tag}"
-    r = requePsts.get(url)
-    player_data = r.content
-    return player_data
 
 @bot.listen()
 async def on_ready():
@@ -60,8 +52,8 @@ async def on_message(ctx):
                 "$pickup":{"func":start_pickup, "description":"Start a Pickup"},
                 "$pu":{"func":start_pickup, "description":"Start a Pickup"},
                 "$tr":{"func":time_to_next_quake_monday, "description":"Post how much time untill next monday quake night"},
-                "$reg":{"func":register_player, "description":"Register quake name"},
-                "$register":{"func":register_player, "description":"Register quake name"},
+                "$reg":{"func":partial(register_player, db = db), "description":"Register quake name"},
+                "$register":{"func":partial(register_player, db = db), "description":"Register quake name"},
                     }
     return [await cmd["func"](message) for option,cmd in command_dict.items() if message.content.startswith(option)]
     

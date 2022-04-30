@@ -2,6 +2,8 @@ import discord
 from botui import SelectView, selection_all, collect_selection_finish, button_pressed, buttons_all, collect_buttons_finish
 from guild_games_roles import guilds_roles
 from random import randint
+import json
+import requests
 
 def shuffle_list(l):
     for i in range(len(l) * 2):
@@ -9,45 +11,64 @@ def shuffle_list(l):
         l.append(l.pop(r))
     return l[0::2], l[1::2]
 
+async def get_player_stats(player_tag):
+    url = f"https://quake-stats.bethesda.net/api/v2/Player/Stats?name={player_tag}"
+    r = requests.get(url)
+    player_data = r.json()
+    return player_data
 
-class AddPlayersModal(discord.ui.Modal):
-    def __init__(self, data_dict, original_view, original_interaction, *args, **kwargs) -> None:
+class InputModal(discord.ui.Modal):
+    def __init__(self, data_dict, original_view, original_interaction, callback_func, input_fields = 5,*args, **kwargs) -> None:
         self.data_dict = data_dict
         self.original_view = original_view
         self.current_stage = data_dict["current_stage"]
         self.original_interaction = original_interaction
+        self.callback_func = callback_func
         super().__init__(title = "Add Players Manually",*args, **kwargs)
-        for i in range(5):
+        for i in range(min(5,input_fields)):
             self.add_item(discord.ui.InputText(label="Player Name",
                                                required = False))
 
     async def callback(self, interaction: discord.Interaction):
-        embed = discord.Embed(title="Your Modal Results", color=discord.Color.random())
-        data_dict = self.data_dict
-        original_interaction = self.original_interaction
-        players = set()
-        for child in self.children:
-            if child.value:
-                players.add(child.value)
-        
-        new_players = players.difference(data_dict["players"])
-        data_dict["players"] = data_dict["players"].union(new_players)
-        data_dict["selections"][self.current_stage] = new_players.union([child_interface.label for 
-                                                          child_interface in self.original_view.children
-                                                          if isinstance(child_interface, discord.ui.Button)
-                                                          and child_interface.style==discord.ButtonStyle.primary])
-        msg = self.original_interaction.message
-        await msg.delete()
-        await pick_players(data_dict)
-        await interaction.response.send_message(embeds=[embed], delete_after = 0)
+        await self.callback_func(self, interaction)
 
 
+async def get_player_name_input_callback(self, interaction: discord.Interaction):
+    embed = discord.Embed(title="Your Modal Results", color=discord.Color.random())
+    data_dict = self.data_dict
+    player_name = self.children[0].value
+    data_dict["player_data"]["quake_name"] = player_name
+    jdb = data_dict["db"].json()
+    jdb.set("dcid", ".{}.quake_name".format(data_dict["author"].id), player_name)
+    await refresh_player_data(data_dict, self.original_interaction)
+    await interaction.response.send_message(embeds=[embed], delete_after = 0)    
+
+async def add_players_manually_input_callback(self, interaction: discord.Interaction):
+    embed = discord.Embed(title="Your Modal Results", color=discord.Color.random())
+    data_dict = self.data_dict
+    original_interaction = self.original_interaction
+    players = set()
+    for child in self.children:
+        if child.value:
+            players.add(child.value)
+    
+    new_players = players.difference(data_dict["players"])
+    data_dict["players"] = data_dict["players"].union(new_players)
+    data_dict["selections"][self.current_stage] = new_players.union([child_interface.label for 
+                                                      child_interface in self.original_view.children
+                                                      if isinstance(child_interface, discord.ui.Button)
+                                                      and child_interface.style==discord.ButtonStyle.primary])
+    msg = self.original_interaction.message
+    await msg.delete()
+    await pick_players(data_dict)
+    await interaction.response.send_message(embeds=[embed], delete_after = 0)
 
 async def add_players_manually(self, interaction, data_dict):
-    items = self.view.children
-    await interaction.response.send_modal(AddPlayersModal(data_dict,
+    return await interaction.response.send_modal(InputModal(data_dict,
                                                           original_view=self.view,
-                                                          original_interaction=interaction))
+                                                          original_interaction=interaction,
+                                                          callback_func=add_players_manually_input_callback,
+                                                          ))
 
 
 async def players_source(data_dict):
@@ -121,7 +142,7 @@ async def assign_players(data_dict):
     team2 = ", ".join(team2)
     text = f"Team 1:{team1}\nTeam 2:{team2} "
     await data_dict["channel"].send(text)
-    await data_dict["thread"].delete()
+    # await data_dict["thread"].delete()
     await data_dict["message"].delete()
 
 
@@ -163,26 +184,98 @@ async def start_pickup(message):
 
     await players_source(data_dict)
 
-async def register_player(message):
-    thread = await message.create_thread(name="Register", auto_archive_duration=60)
-    team_balance_options = {"Random": shuffle_list}
+
+async def calc_elos(data_dict):
+    db = data_dict["db"]
+
+
+
+
+
+
+
+    db.save()
+    
+
+async def refresh_player_data(data_dict, interaction = None):
+    if data_dict.get("player_data",{}).get("quake_name"):
+        quake_name = data_dict["player_data"]["quake_name"]
+    else:
+        return await data_dict["thread"].send("Error: DB entry for user id `{}` is missing your Quake name, please register first".format(data_dict["author"].id))
+    player_stats = await get_player_stats(quake_name)
+    if player_stats.get("code")==404:
+        return await data_dict["thread"].send("Error: 404 `{}` is resulting in a 404 from quake-stats api".format(quake_name))
+    data_dict["qcstats"] = player_stats
+    
+    db = data_dict["db"]
+    jdb = db.json()
+    
+    jdb.set("qcstats", ".{}".format(quake_name), player_stats)
+
+    await calc_elos(data_dict)
+    if data_dict["clean_up"]:
+        await data_dict["message"].delete()
+    else:
+        await data_dict["message"].reply("Successfully updated DB entry with quake-stats data")
+    if interaction:
+        await interaction.message.delete()
+
+async def register_new_player(self, interaction, data_dict):
+    return await interaction.response.send_modal(InputModal(data_dict,
+                                                          original_view=self.view,
+                                                          original_interaction=interaction,
+                                                          callback_func=get_player_name_input_callback,
+                                                          input_fields=1
+                                                          ))
+
+async def show_player_stats(data_dict):
+    pass
+
+async def register_player(message, db):
+    current_stage = "db_options"
+    if message.guild:
+        thread = await message.create_thread(name="Register", auto_archive_duration=60)
+        clean_up = True
+    else:
+        thread = message.channel
+        clean_up = False
     author = message.author
-    guild = message.guild
     channel = message.channel
-    roles = guilds_roles.get(guild.id, {}).get("roles")
-    channels = guilds_roles.get(guild.id, {}).get("channels")
+    
     data_dict = {
-        "team_balance_options": team_balance_options,
+        "current_stage":current_stage,
+        "clean_up": clean_up,
         "message": message,
         "thread": thread,
         "author": author,
-        "guild": guild,
         "channel": channel,
-        "roles": roles,
-        "channels": channels,
-        "selected_players": set(),
-        "players": set(),
+        "db":db,
         "selections": {},
         "dropdowns": {},
-        "buttons": {},
+        "buttons": {current_stage:[]},
+        "player_data":{}
     }
+    
+    jdb = db.json()
+    player_data = jdb.get("dcid", "$.{}".format(author.id))
+    if player_data:
+        data_dict["player_data"] = player_data[0]
+        data_dict["buttons"][current_stage].append({
+                                                "callback_func": lambda self, interaction, data_dict:refresh_player_data(data_dict, interaction),
+                                                "label": "Refresh stats",
+                                                "style": discord.ButtonStyle.primary
+                                                }
+                                              )
+    else:
+        jdb.set("dcid", ".{}".format(author.id), {})
+    data_dict["buttons"][current_stage].append({"callback_func":register_new_player,
+                                                "label": "Register Quake Name",
+                                                "style": discord.ButtonStyle.primary
+                                                }
+                                              )
+    data_dict["buttons"][current_stage].append({"callback_func": lambda self, interaction, data_dict:show_player_stats(data_dict),
+                                                "label": "See Stats",
+                                                "style": discord.ButtonStyle.primary
+                                                }
+                                              )
+    return await thread.send("What would you like to do?", view=SelectView(data_dict))

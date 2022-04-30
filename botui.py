@@ -35,14 +35,14 @@ class SelectView(discord.ui.View):
     def __init__(self, data_dict):
         super().__init__()
         # Adds the dropdown to our view object.
-        selection_options = data_dict["dropdowns"].get(data_dict["current_stage"],{})
+        selection_options = data_dict.get("dropdowns", {}).get(data_dict["current_stage"],{})
         ol = list(selection_options.keys())
         for sub_list in [ol[i * 5:(i + 1) * 5] for i in range(len(ol) // 5 + 1)]:
             if sub_list:
                 sub_dict = {k: selection_options[k] for k in sub_list}
                 self.add_item(Dropdown(sub_dict))
         # Adds the buttons to our view object.
-        for button in data_dict["buttons"].get(data_dict["current_stage"], []):
+        for button in data_dict.get("buttons",{}).get(data_dict["current_stage"], []):
             self.add_item(SelectionGenericButton(data_dict=data_dict, 
                                                  **button))
 
