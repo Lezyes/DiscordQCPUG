@@ -334,6 +334,7 @@ async def refresh_player_data(data_dict, interaction = None):
     await calc_elos(data_dict)
     if data_dict["clean_up"]:
         await data_dict["message"].delete()
+        await data_dict["thread"].delete()
     else:
         await data_dict["message"].reply("Successfully updated DB entry with quake-stats data")
     if interaction:
