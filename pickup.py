@@ -314,6 +314,7 @@ async def calc_elos(data_dict):
 
     jdb.set("qcelo", ".{}".format(quake_name), elos)
     db.save()
+    return elos
     
 
 async def refresh_player_data(data_dict, interaction = None):
@@ -331,14 +332,14 @@ async def refresh_player_data(data_dict, interaction = None):
     
     jdb.set("qcstats", ".{}".format(quake_name), player_stats)
 
-    await calc_elos(data_dict)
+    elos = await calc_elos(data_dict)
     if data_dict["clean_up"]:
         await data_dict["thread"].delete()
         await data_dict["message"].delete()
     elif interaction:
         await interaction.message.delete()
-    else:
-        await data_dict["message"].reply("Successfully updated DB entry with quake-stats data")
+    await data_dict["message"].reply("Successfully updated {} stats, ELO stats: {}".format(quake_name,player_stats))
+    
     
 
 async def register_new_player(self, interaction, data_dict):
@@ -349,7 +350,7 @@ async def register_new_player(self, interaction, data_dict):
                                                           input_fields=1
                                                           ))
 
-async def show_player_stats(data_dict):
+async def show_player_stats(data_dict, interaction = None):
     jdb = data_dict["db"].json()
     if data_dict.get("player_data",{}).get("quake_name"):
         quake_name = data_dict["player_data"]["quake_name"]
@@ -361,6 +362,8 @@ async def show_player_stats(data_dict):
     if data_dict["clean_up"]:
         await data_dict["thread"].delete()
         await data_dict["message"].delete()
+    elif interaction:
+        await interaction.message.delete()
 
 async def register_player(message, db):
     current_stage = "db_options"
@@ -392,12 +395,14 @@ async def register_player(message, db):
     if player_data:
         data_dict["player_data"] = player_data[0]
         data_dict["buttons"][current_stage].append({
-                                                "callback_func": lambda self, interaction, data_dict:refresh_player_data(data_dict, interaction),
+                                                "callback_func": lambda self, interaction, data_dict:refresh_player_data(data_dict, 
+                                                                                                                     interaction),
                                                 "label": "Refresh stats",
                                                 "style": discord.ButtonStyle.primary
                                                 }
                                               )
-        data_dict["buttons"][current_stage].append({"callback_func": lambda self, interaction, data_dict:show_player_stats(data_dict),
+        data_dict["buttons"][current_stage].append({"callback_func": lambda self, interaction, data_dict:show_player_stats(data_dict,
+                                                                                                                       interaction),
                                                 "label": "See Stats",
                                                 "style": discord.ButtonStyle.primary
                                                 }
