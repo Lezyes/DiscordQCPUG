@@ -320,9 +320,9 @@ async def calc_elos(data_dict):
                     ]
 
     elos = {name:mode_elo(data_dict["qcstats"], mode) for name,mode in game_modes.items()}
-    
-    elos["Objective"] = sum([v for k,v in elos.items() if k in objective_modes])/len(objective_modes)
-    elos["Killing"] = sum([v for k,v in elos.items() if k in killing_modes])/len(killing_modes)
+    avg = lambda data:sum(data)/len(data)
+    elos["Objective"] = avg([v for k,v in elos.items() if k in objective_modes and v>0])
+    elos["Killing"] = avg([v for k,v in elos.items() if k in killing_modes and v>0])
 
     jdb.set("qcelo", ".{}".format(quake_name), elos)
     db.save()
@@ -363,12 +363,12 @@ async def refresh_player_data(data_dict, interaction = None):
     await jdb_set(jdb, key="qcstats", path =  ".{}".format(quake_name), value = player_stats)
 
     elos = await calc_elos(data_dict)
-    await data_dict["channel"].send("Successfully updated {} stats, ELO stats: {}".format(quake_name,elos))
-    if data_dict["clean_up"]:
-        await data_dict["thread"].delete()
-        await data_dict["message"].delete()
-    elif interaction:
-        await interaction.message.delete()
+    return await show_player_stats(data_dict)
+    # if data_dict["clean_up"]:
+    #     await data_dict["thread"].delete()
+    #     await data_dict["message"].delete()
+    # elif interaction:
+    #     await interaction.message.delete()
     
     
 
@@ -387,8 +387,10 @@ async def show_player_stats(data_dict, interaction = None):
     else:
         return await data_dict["thread"].send("Error: DB entry for user id `{}` is missing your Quake name, please register first".format(data_dict["author"].id))
     elos = jdb.get("qcelo", ".{}".format(quake_name))
-    
-    await data_dict["channel"].send("{} ELO stats:{}".format(quake_name,elos))
+    text = f"{quake_name} ELO stats:\n"
+    for mode, val in elos.items():
+        text+="- {}: {:0.2f}\n".format(mode, val)
+    await data_dict["channel"].send(text)
     if data_dict["clean_up"]:
         await data_dict["thread"].delete()
         await data_dict["message"].delete()
