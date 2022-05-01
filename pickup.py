@@ -80,17 +80,18 @@ class InputModal(discord.ui.Modal):
 
 
 async def get_player_name_input_callback(self, interaction: discord.Interaction):
-    embed = discord.Embed(title="Your Modal Results", color=discord.Color.random())
+    embed = discord.Embed(title="Getting Player's Data, Please Wait", color=discord.Color.random())
+    await interaction.response.send_message(embeds=[embed], delete_after = 0)    
     data_dict = self.data_dict
     player_name = self.children[0].value.lower()
     data_dict["player_data"]["quake_name"] = player_name
     jdb = data_dict["db"].json()
     jdb.set("dcid", ".{}.quake_name".format(data_dict["author"].id), player_name)
     await refresh_player_data(data_dict, self.original_interaction)
-    await interaction.response.send_message(embeds=[embed], delete_after = 0)    
 
 async def add_players_manually_input_callback(self, interaction: discord.Interaction):
-    embed = discord.Embed(title="Your Modal Results", color=discord.Color.random())
+    embed = discord.Embed(title="Adding Players To Game, Please Wait", color=discord.Color.random())
+    await interaction.response.send_message(embeds=[embed], delete_after = 0)
     data_dict = self.data_dict
     original_interaction = self.original_interaction
     players = set()
@@ -107,7 +108,6 @@ async def add_players_manually_input_callback(self, interaction: discord.Interac
     msg = self.original_interaction.message
     await msg.delete()
     await pick_players(data_dict)
-    await interaction.response.send_message(embeds=[embed], delete_after = 0)
 
 async def add_players_manually(self, interaction, data_dict):
     return await interaction.response.send_modal(InputModal(data_dict,
@@ -333,12 +333,13 @@ async def refresh_player_data(data_dict, interaction = None):
 
     await calc_elos(data_dict)
     if data_dict["clean_up"]:
+        await data_dict["thread"].delete()
         await data_dict["message"].delete()
-        # await data_dict["thread"].delete()
+    elif interaction:
+        await interaction.message.delete()
     else:
         await data_dict["message"].reply("Successfully updated DB entry with quake-stats data")
-    if interaction:
-        await interaction.message.delete()
+    
 
 async def register_new_player(self, interaction, data_dict):
     return await interaction.response.send_modal(InputModal(data_dict,
@@ -349,7 +350,17 @@ async def register_new_player(self, interaction, data_dict):
                                                           ))
 
 async def show_player_stats(data_dict):
-    pass
+    jdb = data_dict["db"].json()
+    if data_dict.get("player_data",{}).get("quake_name"):
+        quake_name = data_dict["player_data"]["quake_name"]
+    else:
+        return await data_dict["thread"].send("Error: DB entry for user id `{}` is missing your Quake name, please register first".format(data_dict["author"].id))
+    player_stats = jdb.get("qcelo", ".{}".format(quake_name))
+    
+    await data_dict["channel"].send("{} ELO stats:{}".format(quake_name,player_stats))
+    if data_dict["clean_up"]:
+        await data_dict["thread"].delete()
+        await data_dict["message"].delete()
 
 async def register_player(message, db):
     current_stage = "db_options"
@@ -386,6 +397,11 @@ async def register_player(message, db):
                                                 "style": discord.ButtonStyle.primary
                                                 }
                                               )
+        data_dict["buttons"][current_stage].append({"callback_func": lambda self, interaction, data_dict:show_player_stats(data_dict),
+                                                "label": "See Stats",
+                                                "style": discord.ButtonStyle.primary
+                                                }
+                                              )
     else:
         jdb.set("dcid", ".{}".format(author.id), {})
     data_dict["buttons"][current_stage].append({"callback_func":register_new_player,
@@ -393,9 +409,5 @@ async def register_player(message, db):
                                                 "style": discord.ButtonStyle.primary
                                                 }
                                               )
-    data_dict["buttons"][current_stage].append({"callback_func": lambda self, interaction, data_dict:show_player_stats(data_dict),
-                                                "label": "See Stats",
-                                                "style": discord.ButtonStyle.primary
-                                                }
-                                              )
+    
     return await thread.send("What would you like to do?", view=SelectView(data_dict))
