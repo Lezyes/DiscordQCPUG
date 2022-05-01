@@ -12,6 +12,7 @@ from pickup import start_pickup, register_player
 db = redis.Redis(host='localhost', port=6379, db=0)
 for k in ["dcid","qcstats","qcelo"]:
     if not db.exists(k):
+        print(f"{k} was missing from the DB!!!????!?!?!?!")
         db.json().set(k, '$', {})
 
 logging.basicConfig(level=logging.WARNING)

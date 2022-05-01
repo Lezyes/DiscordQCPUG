@@ -294,7 +294,7 @@ def mode_stats(player_stats, game_mode):
     game_mode_stats["avg_score"] = game_mode_stats["score"]/max(1,game_mode_stats["games_count"])
     game_mode_stats["avg_score_per_minute"] = game_mode_stats["score"]/max(1,game_mode_stats["life_time"]/1000/60)
     game_mode_stats["mode_avg_score"] = game_mode_stats["avg_score"]/max(1,game_mode_stats["avg_score_per_minute"])
-    game_mode_stats["mode_score"] = game_mode_stats["mode_avg_score"]*game_mode_stats["win_ratio"]
+    game_mode_stats["mode_score"] = game_mode_stats["avg_score_per_minute"]*game_mode_stats["win_ratio"]
     return game_mode_stats
 
 def mode_elo(player_stats, game_mode):
