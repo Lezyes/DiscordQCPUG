@@ -328,7 +328,25 @@ async def calc_elos(data_dict):
     db.save()
     return elos
     
-
+async def refresh_all_players_data(data_dict, interaction=None):
+    db = data_dict["db"]
+    jdb = db.json()
+    dcid = jdb.get("dcid")
+    for discord_id,discord_user_dict in dcid.items():
+        copy_dict = data_dict.copy()
+        if "quake_name" in discord_user_dict:
+            quake_name = discord_user_dict["quake_name"]
+            copy_dict["player_data"]["quake_name"] = quake_name
+            copy_dict["clean_up"] = False
+            await refresh_player_data(copy_dict)
+    
+    
+    if data_dict["clean_up"]:
+        await data_dict["thread"].delete()
+        await data_dict["message"].delete()
+    elif interaction:
+        await interaction.message.delete()
+    
 async def refresh_player_data(data_dict, interaction = None):
     if data_dict.get("player_data",{}).get("quake_name"):
         quake_name = data_dict["player_data"]["quake_name"]
@@ -423,6 +441,14 @@ async def register_player(message, db):
         jdb.set("dcid", ".{}".format(author.id), {})
     data_dict["buttons"][current_stage].append({"callback_func":register_new_player,
                                                 "label": "Register Quake Name",
+                                                "style": discord.ButtonStyle.primary
+                                                }
+                                              )
+    if author.id==88533822521507840:
+        data_dict["buttons"][current_stage].append({"callback_func": lambda self, 
+                                                                    interaction, data_dict:refresh_all_players_data(data_dict,
+                                                                                                                       interaction),
+                                                "label": "Refresh all players stats",
                                                 "style": discord.ButtonStyle.primary
                                                 }
                                               )
