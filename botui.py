@@ -16,7 +16,7 @@ class SelectionGenericButton(discord.ui.Button):
         )
     async def callback(self, interaction):
         if not self.original_user_only or interaction.user.id == self.data_dict["author"].id:
-            await self.callback_func(self, interaction, self.data_dict)
+            return await self.callback_func(self, interaction, self.data_dict)
 
 class Dropdown(discord.ui.Select):
     def __init__(self, options, title="Pick your pick", max_values = None):

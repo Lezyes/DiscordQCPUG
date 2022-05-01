@@ -7,6 +7,18 @@ import requests
 from itertools import combinations
 
 
+async def jdb_get(jdb, key, path = None):
+    if path:
+        return jdb.get(key, path)
+    else:
+        return jdb.get(key)
+
+async def jdb_set(jdb, key, value, path = None):
+    if path:
+        return jdb.set(key, path, value)
+    else:
+        return jdb.set(key, "$", value)
+
 async def shuffle_list(players_elo):
     l = list(players_elo.keys())
     for i in range(len(l) * 2):
@@ -330,15 +342,15 @@ async def refresh_player_data(data_dict, interaction = None):
     db = data_dict["db"]
     jdb = db.json()
     
-    jdb.set("qcstats", ".{}".format(quake_name), player_stats)
+    await jdb_set(jdb, key="qcstats", path =  ".{}".format(quake_name), value = player_stats)
 
     elos = await calc_elos(data_dict)
+    await data_dict["channel"].send("Successfully updated {} stats, ELO stats: {}".format(quake_name,elos))
     if data_dict["clean_up"]:
         await data_dict["thread"].delete()
         await data_dict["message"].delete()
     elif interaction:
         await interaction.message.delete()
-    await data_dict["message"].reply("Successfully updated {} stats, ELO stats: {}".format(quake_name,player_stats))
     
     
 
@@ -356,9 +368,9 @@ async def show_player_stats(data_dict, interaction = None):
         quake_name = data_dict["player_data"]["quake_name"]
     else:
         return await data_dict["thread"].send("Error: DB entry for user id `{}` is missing your Quake name, please register first".format(data_dict["author"].id))
-    player_stats = jdb.get("qcelo", ".{}".format(quake_name))
+    elos = jdb.get("qcelo", ".{}".format(quake_name))
     
-    await data_dict["channel"].send("{} ELO stats:{}".format(quake_name,player_stats))
+    await data_dict["channel"].send("{} ELO stats:{}".format(quake_name,elos))
     if data_dict["clean_up"]:
         await data_dict["thread"].delete()
         await data_dict["message"].delete()
