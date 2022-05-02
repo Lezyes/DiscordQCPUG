@@ -24,7 +24,7 @@ async def shuffle_list(players_elo):
     for i in range(len(l) * 2):
         r = randint(0, len(l) - 1)
         l.append(l.pop(r))
-    return l[0::2], l[1::2]
+    return [(l[0::2], l[1::2])]
 
 async def pick_from_top(players_elo):
     soreted_by_elo = sorted(players_elo.items(), key=lambda x:x[1], reverse=True)
@@ -34,7 +34,7 @@ async def pick_from_top(players_elo):
     team1.append("Total ELO: {}".format(sum([p[1] for p in team1_elos])))
     team2 = [p[0] for p in team2_elos]
     team2.append("Total ELO: {}".format(sum([p[1] for p in team2_elos])))
-    return team1, team2
+    return [(team1, team2)]
 
 async def weighted_player_allocation(players_elo):
     soreted_by_elo = sorted(players_elo.items(), key=lambda x:x[1], reverse=True)
@@ -43,30 +43,42 @@ async def weighted_player_allocation(players_elo):
                              for comb in combinations(soreted_by_elo, len(players_elo)//2) 
                              if soreted_by_elo[0] in comb],
                            key=lambda x:x[1])
-    winning_score = team1_options[0][1]
-    team1_options = [comb[0] for comb in team1_options if comb[1]==winning_score]
-    # if len(team1_options)>1:
-    team1_elo = {p[0]:players_elo[p[0]] for p in team1_options[randint(0,len(team1_options)-1)]}
-    team2_elo = {p:v for p,v in players_elo.items() if p not in team1_elo }
-    team1 = list(team1_elo.keys())
-    team2 = list(team2_elo.keys())
+    top3_teams = team1_options[:3]
+    team = []
+    for team1 in top3_teams:
+        team1_elo = {p[0]:players_elo[p[0]] for p in team1}
+        team2_elo = {p:v for p,v in players_elo.items() if p not in team1_elo}
+        team1 = list(team1_elo.keys())
+        team2 = list(team2_elo.keys())
+        team1.append("Total ELO: {}".format(sum([v for v in team1_elo.values()])))
+        team2.append("Total ELO: {}".format(sum([v for v in team2_elo.values()])))
+        teams.append((team1,team2))
+    return teams
 
-    #     teams_elo_weight = {}
-    #     for team1_option in team1_options:
-    #         team_elo_mean = np.mean([p[1] for p in team1_option])
-    #         teams_elo_weight[team1_option] = sum([abs(v[1]-team_elo_mean)**2 for v in team1_option])
-    #     team1_options = sorted(teams_elo_weight.items(),key = lambda x:x[1])
-    #     winning_score = team1_options[0][1]
-    #     team1_options = [comb[0] for comb in team1_options if comb[1]==winning_score]
-    #     if len(team1_options)>1:
-    #         team1 = team1_options[randint(0,len(team1_options)-1)][0]
-    #     else:
-    #         team1 = team1_options[0][0]
-    # else:
-    #     team1 = [player[0] for player in team1_options[0]]
-    team1.append("Total ELO: {}".format(sum([v for v in team1_elo.values()])))
-    team2.append("Total ELO: {}".format(sum([v for v in team2_elo.values()])))
-    return team1,team2
+    # winning_score = team1_options[0]
+    # team1_options = [comb[0] for comb in team1_options if comb[1]==winning_score]
+    # # if len(team1_options)>1:
+    # team1_elo = {p[0]:players_elo[p[0]] for p in team1_options[randint(0,len(team1_options)-1)]}
+    # team2_elo = {p:v for p,v in players_elo.items() if p not in team1_elo }
+    # team1 = list(team1_elo.keys())
+    # team2 = list(team2_elo.keys())
+
+    # #     teams_elo_weight = {}
+    # #     for team1_option in team1_options:
+    # #         team_elo_mean = np.mean([p[1] for p in team1_option])
+    # #         teams_elo_weight[team1_option] = sum([abs(v[1]-team_elo_mean)**2 for v in team1_option])
+    # #     team1_options = sorted(teams_elo_weight.items(),key = lambda x:x[1])
+    # #     winning_score = team1_options[0][1]
+    # #     team1_options = [comb[0] for comb in team1_options if comb[1]==winning_score]
+    # #     if len(team1_options)>1:
+    # #         team1 = team1_options[randint(0,len(team1_options)-1)][0]
+    # #     else:
+    # #         team1 = team1_options[0][0]
+    # # else:
+    # #     team1 = [player[0] for player in team1_options[0]]
+    # team1.append("Total ELO: {}".format(sum([v for v in team1_elo.values()])))
+    # team2.append("Total ELO: {}".format(sum([v for v in team2_elo.values()])))
+    # return [(team1,team2)]
 
 async def get_player_stats(player_tag):
     url = f"https://quake-stats.bethesda.net/api/v2/Player/Stats?name={player_tag}"
@@ -210,8 +222,8 @@ async def assign_players(data_dict):
     
     jdb = data_dict["db"].json()
     players = data_dict["selections"]["pick_players"]
-    game_mode = [v for k,v in data_dict["selections"]["choose_balance_func"].items() if isinstance(v,str)][0]
-    balance_func = [v for k,v in data_dict["selections"]["choose_balance_func"].items() if not isinstance(v,str)][0]
+    game_mode_name, game_mode = [(k,v) for k,v in data_dict["selections"]["choose_balance_func"].items() if isinstance(v,str)][0]
+    balance_func_name, balance_func = [(k,v) for k,v in data_dict["selections"]["choose_balance_func"].items() if not isinstance(v,str)][0]
     players_elo = {}
     for player_name in players:
         player_elo_dict = jdb.get("qcelo", "$.{}".format(player_name))
@@ -219,11 +231,12 @@ async def assign_players(data_dict):
         player_elo  = player_elo_dict.get(game_mode,0) 
         players_elo[player_name] = player_elo
     
-    team1, team2 = await balance_func(players_elo)
-
-    team1 = ", ".join(team1)
-    team2 = ", ".join(team2)
-    text = f"Team 1:{team1}\nTeam 2:{team2} "
+    text = f"Recomended teams for {game_mode_name} based on {balance_func_name} algorithm:\n"
+    teams = await balance_func(players_elo)
+    for team1, team2 in teams:
+        team1 = ", ".join(team1)
+        team2 = ", ".join(team2)
+        text+= "\nTeam 1:{team1}\nTeam 2:{team2}\n"
     await data_dict["channel"].send(text)
     await data_dict["thread"].delete()
     await data_dict["message"].delete()
