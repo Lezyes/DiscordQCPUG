@@ -45,8 +45,8 @@ async def weighted_player_allocation(players_elo):
                            key=lambda x:x[1])
     top3_teams = team1_options[:3]
     team = []
-    for team1 in top3_teams:
-        team1_elo = {p[0]:players_elo[p[0]] for p in team1}
+    for team1_option in top3_teams:
+        team1_elo = {p[0]:players_elo[p[0]] for p in team1_option[0]}
         team2_elo = {p:v for p,v in players_elo.items() if p not in team1_elo}
         team1 = list(team1_elo.keys())
         team2 = list(team2_elo.keys())
