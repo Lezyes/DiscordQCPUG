@@ -44,7 +44,7 @@ async def weighted_player_allocation(players_elo):
                              if soreted_by_elo[0] in comb],
                            key=lambda x:x[1])
     top3_teams = team1_options[:3]
-    team = []
+    teams = []
     for team1_option in top3_teams:
         team1_elo = {p[0]:players_elo[p[0]] for p in team1_option[0]}
         team2_elo = {p:v for p,v in players_elo.items() if p not in team1_elo}
@@ -236,7 +236,7 @@ async def assign_players(data_dict):
     for team1, team2 in teams:
         team1 = ", ".join(team1)
         team2 = ", ".join(team2)
-        text+= "\nTeam 1:{team1}\nTeam 2:{team2}\n"
+        text+= f"\nTeam 1:{team1}\nTeam 2:{team2}\n"
     await data_dict["channel"].send(text)
     await data_dict["thread"].delete()
     await data_dict["message"].delete()
