@@ -45,6 +45,7 @@ async def time_to_next_quake_monday(message):
     monday_quake = monday+ datetime.timedelta(hours=19, )
     ts = int(monday_quake.timestamp())
     await message.channel.send(f"<t:{ts}:R>")
+    await message.delete()
 
 @bot.listen('on_message')
 async def on_message(ctx):

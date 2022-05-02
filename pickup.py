@@ -39,9 +39,8 @@ async def pick_from_top(players_elo):
 async def weighted_player_allocation(players_elo):
     soreted_by_elo = sorted(players_elo.items(), key=lambda x:x[1], reverse=True)
     elo_sum = sum(players_elo.values())
-    team1_options = sorted([(comb, abs(elo_sum/2-sum((player[1] 
-                                               for player in comb)))) 
-                             for comb in combinations(soreted_by_elo, 3) 
+    team1_options = sorted([(comb, abs(elo_sum/2-sum((player[1] for player in comb)))) 
+                             for comb in combinations(soreted_by_elo, len(players_elo)//2) 
                              if soreted_by_elo[0] in comb],
                            key=lambda x:x[1])
     winning_score = team1_options[0][1]
