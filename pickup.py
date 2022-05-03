@@ -5,6 +5,7 @@ from random import randint
 import json
 import requests
 from itertools import combinations
+from functools import partial
 
 
 async def jdb_get(jdb, key, path = None):
@@ -55,31 +56,6 @@ async def weighted_player_allocation(players_elo):
         teams.append((team1,team2))
     return teams
 
-    # winning_score = team1_options[0]
-    # team1_options = [comb[0] for comb in team1_options if comb[1]==winning_score]
-    # # if len(team1_options)>1:
-    # team1_elo = {p[0]:players_elo[p[0]] for p in team1_options[randint(0,len(team1_options)-1)]}
-    # team2_elo = {p:v for p,v in players_elo.items() if p not in team1_elo }
-    # team1 = list(team1_elo.keys())
-    # team2 = list(team2_elo.keys())
-
-    # #     teams_elo_weight = {}
-    # #     for team1_option in team1_options:
-    # #         team_elo_mean = np.mean([p[1] for p in team1_option])
-    # #         teams_elo_weight[team1_option] = sum([abs(v[1]-team_elo_mean)**2 for v in team1_option])
-    # #     team1_options = sorted(teams_elo_weight.items(),key = lambda x:x[1])
-    # #     winning_score = team1_options[0][1]
-    # #     team1_options = [comb[0] for comb in team1_options if comb[1]==winning_score]
-    # #     if len(team1_options)>1:
-    # #         team1 = team1_options[randint(0,len(team1_options)-1)][0]
-    # #     else:
-    # #         team1 = team1_options[0][0]
-    # # else:
-    # #     team1 = [player[0] for player in team1_options[0]]
-    # team1.append("Total ELO: {}".format(sum([v for v in team1_elo.values()])))
-    # team2.append("Total ELO: {}".format(sum([v for v in team2_elo.values()])))
-    # return [(team1,team2)]
-
 async def get_player_stats(player_tag):
     url = f"https://quake-stats.bethesda.net/api/v2/Player/Stats?name={player_tag}"
     r = requests.get(url)
@@ -102,15 +78,25 @@ class InputModal(discord.ui.Modal):
         await self.callback_func(self, interaction)
 
 
-async def get_player_name_input_callback(self, interaction: discord.Interaction):
+async def get_player_name_input_callback(self, interaction: discord.Interaction, register = False):
     embed = discord.Embed(title="Getting Player's Data, Please Wait", color=discord.Color.random())
     await interaction.response.send_message(embeds=[embed], delete_after = 0)    
     data_dict = self.data_dict
-    player_name = self.children[0].value.lower()
-    data_dict["player_data"]["quake_name"] = player_name
-    jdb = data_dict["db"].json()
-    jdb.set("dcid", ".{}.quake_name".format(data_dict["author"].id), player_name)
-    await refresh_player_data(data_dict, self.original_interaction)
+    clean_up = data_dict["clean_up"]
+    data_dict["clean_up"] = False
+    for child in self.children:
+        player_name = child.value.lower()
+        if player_name:
+
+            data_dict["player_data"]["quake_name"] = player_name
+            jdb = data_dict["db"].json()
+            if register:
+                jdb.set("dcid", ".{}.quake_name".format(data_dict["author"].id), player_name)
+
+            await refresh_player_data(data_dict, self.original_interaction)
+    data_dict["clean_up"] = clean_up
+    if data_dict["clean_up"]:
+        await clean_up_msg(data_dict)
 
 async def add_players_manually_input_callback(self, interaction: discord.Interaction):
     embed = discord.Embed(title="Adding Players To Game, Please Wait", color=discord.Color.random())
@@ -238,12 +224,17 @@ async def assign_players(data_dict):
         team2 = ", ".join(team2)
         text+= f"\nTeam 1:{team1}\nTeam 2:{team2}\n"
     await data_dict["channel"].send(text)
-    await data_dict["thread"].delete()
-    await data_dict["message"].delete()
+    await clean_up_msg(data_dict)
 
 
 async def start_pickup(message, db):
-    thread = await message.create_thread(name="Pickup Organizer", auto_archive_duration=60)
+    if message.guild:
+        thread = await message.create_thread(name="Pickup Organizer", auto_archive_duration=60)
+        clean_up = True
+    else:
+        thread = message.channel
+        clean_up = False
+
     author = message.author
     guild = message.guild
     channel = message.channel
@@ -339,6 +330,12 @@ async def calc_elos(data_dict):
     jdb.set("qcelo", ".{}".format(quake_name), elos)
     db.save()
     return elos
+
+async def clean_up_msg(data_dict):
+    if data_dict["clean_up"]:
+        await data_dict["thread"].delete()
+        await data_dict["message"].delete()
+
     
 async def refresh_all_players_data(data_dict, interaction=None):
     db = data_dict["db"]
@@ -354,8 +351,7 @@ async def refresh_all_players_data(data_dict, interaction=None):
     
     
     if data_dict["clean_up"]:
-        await data_dict["thread"].delete()
-        await data_dict["message"].delete()
+        await clean_up_msg(data_dict)
     elif interaction:
         await interaction.message.delete()
     
@@ -382,13 +378,20 @@ async def refresh_player_data(data_dict, interaction = None):
     # elif interaction:
     #     await interaction.message.delete()
     
+async def register_outsider(self, interaction, data_dict):
+    return await interaction.response.send_modal(InputModal(data_dict,
+                                                          original_view=self.view,
+                                                          original_interaction=interaction,
+                                                          callback_func=partial(get_player_name_input_callback, register=False),
+                                                          input_fields=5
+                                                          ))
     
 
 async def register_new_player(self, interaction, data_dict):
     return await interaction.response.send_modal(InputModal(data_dict,
                                                           original_view=self.view,
                                                           original_interaction=interaction,
-                                                          callback_func=get_player_name_input_callback,
+                                                          callback_func=partial(get_player_name_input_callback, register=True),
                                                           input_fields=1
                                                           ))
 
@@ -404,8 +407,7 @@ async def show_player_stats(data_dict, interaction = None):
         text+="- {}: {:0.2f}\n".format(mode, val)
     await data_dict["channel"].send(text)
     if data_dict["clean_up"]:
-        await data_dict["thread"].delete()
-        await data_dict["message"].delete()
+        await clean_up_msg(data_dict)
     elif interaction:
         await interaction.message.delete()
 
@@ -455,6 +457,11 @@ async def register_player(message, db):
         jdb.set("dcid", ".{}".format(author.id), {})
     data_dict["buttons"][current_stage].append({"callback_func":register_new_player,
                                                 "label": "Register Quake Name",
+                                                "style": discord.ButtonStyle.primary
+                                                }
+                                              )
+    data_dict["buttons"][current_stage].append({"callback_func":register_outsider,
+                                                "label": "Register Outsider",
                                                 "style": discord.ButtonStyle.primary
                                                 }
                                               )
