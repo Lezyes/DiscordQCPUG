@@ -287,7 +287,7 @@ def mode_stats(player_stats, game_mode):
             "kills": champ_mode_data["kills"], 
             "deaths": champ_mode_data["deaths"], 
             "wins": champ_mode_data["won"],
-            "losses":champ_mode_data["lost"]
+            "losses":champ_mode_data["lost"],
             "life_time": champ_mode_data["lifeTime"],
             "score": champ_mode_data["score"],}
     game_mode_stats = {k:sum([champ_stats[champ][k] for champ in champ_stats]) 
