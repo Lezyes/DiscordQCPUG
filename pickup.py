@@ -252,6 +252,7 @@ async def start_pickup(message, db):
         "db": db,
         "roles": roles,
         "channels": channels,
+        "clean_up":clean_up,
         "selected_players": set(),
         "players": set(),
         "selections": {},
@@ -286,16 +287,17 @@ def mode_stats(player_stats, game_mode):
             "kills": champ_mode_data["kills"], 
             "deaths": champ_mode_data["deaths"], 
             "wins": champ_mode_data["won"],
+            "losses":champ_mode_data["lost"]
             "life_time": champ_mode_data["lifeTime"],
             "score": champ_mode_data["score"],}
     game_mode_stats = {k:sum([champ_stats[champ][k] for champ in champ_stats]) 
-                     for k in ["games_count","life_time", "wins","score", "kills", "deaths"]}
+                     for k in ["games_count","life_time", "losses","wins","score", "kills", "deaths"]}
     if game_mode in objective_modes:
-        game_mode_stats["win_ratio"] = game_mode_stats["wins"]/max(1,game_mode_stats["games_count"])
+        game_mode_stats["win_ratio"] = game_mode_stats["wins"]/max(1,game_mode_stats["losses"])
     else:
-        game_mode_stats["win_ratio"] = game_mode_stats["kills"]/max(1,game_mode_stats["kills"]+ game_mode_stats["deaths"])
+        game_mode_stats["win_ratio"] = game_mode_stats["kills"]/max(1,game_mode_stats["deaths"])
     game_mode_stats["avg_score"] = game_mode_stats["score"]/max(1,game_mode_stats["games_count"])
-    game_mode_stats["avg_score_per_minute"] = game_mode_stats["score"]/max(1,game_mode_stats["life_time"]/1000/60)
+    game_mode_stats["avg_score_per_minute"] = game_mode_stats["score"]/max(1,game_mode_stats["timePlayed"]/1000/60)
     game_mode_stats["mode_avg_score"] = game_mode_stats["avg_score"]/max(1,game_mode_stats["avg_score_per_minute"])
     game_mode_stats["mode_score"] = game_mode_stats["avg_score_per_minute"]*game_mode_stats["win_ratio"]
     return game_mode_stats
@@ -309,10 +311,10 @@ async def calc_elos(data_dict):
     jdb = db.json()
     quake_name = data_dict["player_data"]["quake_name"]
     game_modes = {"Capture The Flag":'GameModeCtf',"Sacrifice":'GameModeObelisk', 
-    "Deathmatch":'GameModeFFA', "Team Deathmatch":'GameModeTeamDeathmatch', "Duel":'GameModeDuel',
+    "Deathmatch":'GameModeFFA', "Team Deathmatch":'GameModeTeamDeathmatch', 
+    "2V2 TDM":'GameModeTeamDeathmatch2vs2',"Duel":'GameModeDuel',
     "Instagib":'GameModeInstagib', "Slipgate":'GameModeSlipgate',
-    "Ranked Sacrifice":'GameModeObeliskPro', "Ranked Duel":'GameModeDuelPro',
-    "2V2 TDM":'GameModeTeamDeathmatch2vs2',
+    "Legacy Ranked Sacrifice":'GameModeObeliskPro', "Legacy Ranked Duel":'GameModeDuelPro',
      }
     objective_modes = ['Capture The Flag', 'Sacrifice', 
                         # 'Ranked Sacrifice'
