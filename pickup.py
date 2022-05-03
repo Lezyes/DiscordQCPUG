@@ -106,7 +106,7 @@ async def add_players_manually_input_callback(self, interaction: discord.Interac
     players = set()
     for child in self.children:
         if child.value:
-            players.add(child.value)
+            players.add(child.value.lower())
     
     new_players = players.difference(data_dict["players"])
     data_dict["players"] = data_dict["players"].union(new_players)
@@ -214,8 +214,7 @@ async def assign_players(data_dict):
     for player_name in players:
         player_elo_dict = jdb.get("qcelo", "$.{}".format(player_name))
         player_elo_dict = player_elo_dict[0] if player_elo_dict else {}
-        player_elo  = player_elo_dict.get(game_mode,0) 
-        players_elo[player_name] = player_elo
+        players_elo[player_name] = player_elo_dict.get(game_mode,0) 
     
     text = f"Recomended teams for {game_mode_name} based on {balance_func_name} algorithm:\n"
     teams = await balance_func(players_elo)
