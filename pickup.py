@@ -289,15 +289,16 @@ def mode_stats(player_stats, game_mode):
             "wins": champ_mode_data["won"],
             "losses":champ_mode_data["lost"],
             "life_time": champ_mode_data["lifeTime"],
+            "play_time": champ_mode_data["timePlayed"],
             "score": champ_mode_data["score"],}
     game_mode_stats = {k:sum([champ_stats[champ][k] for champ in champ_stats]) 
-                     for k in ["games_count","life_time", "losses","wins","score", "kills", "deaths"]}
+                     for k in ["games_count","life_time","play_time", "losses","wins","score", "kills", "deaths"]}
     if game_mode in objective_modes:
         game_mode_stats["win_ratio"] = game_mode_stats["wins"]/max(1,game_mode_stats["losses"])
     else:
         game_mode_stats["win_ratio"] = game_mode_stats["kills"]/max(1,game_mode_stats["deaths"])
     game_mode_stats["avg_score"] = game_mode_stats["score"]/max(1,game_mode_stats["games_count"])
-    game_mode_stats["avg_score_per_minute"] = game_mode_stats["score"]/max(1,game_mode_stats["timePlayed"]/1000/60)
+    game_mode_stats["avg_score_per_minute"] = game_mode_stats["score"]/max(1,game_mode_stats["play_time"]/1000/60)
     game_mode_stats["mode_avg_score"] = game_mode_stats["avg_score"]/max(1,game_mode_stats["avg_score_per_minute"])
     game_mode_stats["mode_score"] = game_mode_stats["avg_score_per_minute"]*game_mode_stats["win_ratio"]
     return game_mode_stats
