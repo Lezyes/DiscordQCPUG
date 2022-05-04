@@ -1,5 +1,20 @@
 import discord
 
+class InputModal(discord.ui.Modal):
+    def __init__(self, data_dict, original_view, original_interaction, callback_func, input_fields = 5,*args, **kwargs) -> None:
+        self.data_dict = data_dict
+        self.original_view = original_view
+        self.current_stage = data_dict["current_stage"]
+        self.original_interaction = original_interaction
+        self.callback_func = callback_func
+        super().__init__(title = "Add Players Manually",*args, **kwargs)
+        for i in range(min(5,input_fields)):
+            self.add_item(discord.ui.InputText(label="Player Name",
+                                               required = False))
+
+    async def callback(self, interaction: discord.Interaction):
+        await self.callback_func(self, interaction)
+
 class SelectionGenericButton(discord.ui.Button):
     def __init__(self, data_dict, callback_func, label=None, style = None, original_user_only = True):
         if not style:

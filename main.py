@@ -6,11 +6,12 @@ import redis
 from functools import partial
 from asyncio import TimeoutError
 from secret import token
-from pickup import start_pickup, register_player
+from pickup import start_pickup
 from pugqueue import queue_up, drop_from_queue
+from registration import register_player
 
 db = redis.Redis(host='localhost', port=6379, db=0)
-for k in ["dcid","qcstats","qcelo"]:
+for k in ["dcid","qcstats","qcelo", "queue"]:
     if not db.exists(k):
         print(f"{k} was missing from the DB!!!????!?!?!?!")
         db.json().set(k, '$', {})
