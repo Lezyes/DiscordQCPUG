@@ -7,7 +7,7 @@ from functools import partial
 from asyncio import TimeoutError
 from secret import token
 from pickup import start_pickup
-from pugqueue import queue_up, drop_from_queue
+from pugqueue import queue_up, drop_from_queue, show_queue
 from registration import register_player
 
 db = redis.Redis(host='localhost', port=6379, db=0)
@@ -79,6 +79,7 @@ async def on_message(ctx):
                 "$qu":{"func":partial(queue_up, db = db), "description":"Queue up for a PUG"},
                 "$drop":{"func":partial(drop_from_queue, db = db), "description":"Drop from queue"},
                 "$dq":{"func":partial(drop_from_queue, db = db), "description":"Drop from queue"},
+                "$qs":{"func":partial(show_queue, db = db), "description":"Show existing queues status"},
                 "$help": {"description":"Print all bot commands"},
                 }
     command_dict["$help"]["func"] = partial(help_msg, command_dict = command_dict)

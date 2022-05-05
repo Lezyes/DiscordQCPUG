@@ -120,13 +120,18 @@ async def assign_players(data_dict):
     players = data_dict["selections"]["pick_players"]
     game_mode_name, game_mode = [(k,v) for k,v in data_dict["selections"]["choose_balance_func"].items() if isinstance(v,str)][0]
     balance_func_name, balance_func = [(k,v) for k,v in data_dict["selections"]["choose_balance_func"].items() if not isinstance(v,str)][0]
+    text = ""
     players_elo = {}
     for player_name in players:
         player_elo_dict = jdb.get("qcelo", "$.{}".format(player_name))
-        player_elo_dict = player_elo_dict[0] if player_elo_dict else {}
+        if player_elo_dict:
+            player_elo_dict = player_elo_dict[0]
+        else:
+            player_elo_dict = {}
+            text+=f"{player_name} isn't in the DB, "
         players_elo[player_name] = player_elo_dict.get(game_mode,0) 
     
-    text = f"Recomended teams for {game_mode_name} based on {balance_func_name} algorithm:\n"
+    text += f"\nRecomended teams for {game_mode_name} based on {balance_func_name} algorithm:\n"
     teams = await balance_func(players_elo)
     for team1, team2 in teams:
         team1 = ", ".join(team1)
