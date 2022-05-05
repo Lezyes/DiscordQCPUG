@@ -41,7 +41,7 @@ async def refresh_player_data(data_dict, interaction = None):
     db = data_dict["db"]
     jdb = db.json()
     
-    await jdb_set(jdb, key="qcstats", path =  ".{}".format(quake_name), value = player_stats)
+    await jdb_set(jdb, key="qcstats", path =  ".['{}']".format(quake_name), value = player_stats)
     elos = await calc_elos(data_dict)
     return await show_player_stats(data_dict)
 
@@ -69,9 +69,9 @@ async def get_player_name_input_callback(self, interaction: discord.Interaction,
 
 def mode_stats(player_stats, game_mode):
     champ_stats = {}
-    objective_modes = ['GameModeObelisk', 'GameModeObeliskPro', 'GameModeCtf']
-    killing_modes = ['GameModeFFA', 'GameModeTeamDeathmatch', 'GameModeDuel',  'GameModeTeamDeathmatch2vs2', 
-                     'GameModeInstagib','GameModeDuelPro', 'GameModeSlipgate']
+    objective_modes = ["GameModeObelisk", "GameModeObeliskPro", "GameModeCtf"]
+    killing_modes = ["GameModeFFA", "GameModeTeamDeathmatch", "GameModeDuel",  "GameModeTeamDeathmatch2vs2", 
+                     "GameModeInstagib","GameModeDuelPro", "GameModeSlipgate"]
     for champ, champ_data in player_stats["playerProfileStats"]["champions"].items():
         champ_mode_data = champ_data["gameModes"][game_mode]
         champ_stats[champ] = {
@@ -103,14 +103,14 @@ async def calc_elos(data_dict):
     db = data_dict["db"]
     jdb = db.json()
     quake_name = data_dict["player_data"]["quake_name"]
-    game_modes = {"Capture The Flag":'GameModeCtf',"Sacrifice":'GameModeObelisk', 
-    "Deathmatch":'GameModeFFA', "Team Deathmatch":'GameModeTeamDeathmatch', 
-    "2V2 TDM":'GameModeTeamDeathmatch2vs2',"Duel":'GameModeDuel',
-    "Instagib":'GameModeInstagib', "Slipgate":'GameModeSlipgate',
-    "Legacy Ranked Sacrifice":'GameModeObeliskPro', "Legacy Ranked Duel":'GameModeDuelPro',
+    game_modes = {"Capture The Flag":"GameModeCtf","Sacrifice":"GameModeObelisk", 
+    "Deathmatch":"GameModeFFA", "Team Deathmatch":"GameModeTeamDeathmatch", 
+    "2V2 TDM":"GameModeTeamDeathmatch2vs2","Duel":"GameModeDuel",
+    "Instagib":"GameModeInstagib", "Slipgate":"GameModeSlipgate",
+    "Legacy Ranked Sacrifice":"GameModeObeliskPro", "Legacy Ranked Duel":"GameModeDuelPro",
      }
-    objective_modes = ['Capture The Flag', 'Sacrifice', 
-                        # 'Ranked Sacrifice'
+    objective_modes = ["Capture The Flag", "Sacrifice", 
+                        # "Ranked Sacrifice"
                         ]
     killing_modes = ["Team Deathmatch","2V2 TDM", "Slipgate",
                     # "Instagib", "Deathmatch", 
@@ -122,7 +122,7 @@ async def calc_elos(data_dict):
     elos["Objective"] = avg([v for k,v in elos.items() if k in objective_modes and v>0])
     elos["Killing"] = avg([v for k,v in elos.items() if k in killing_modes and v>0])
 
-    jdb.set("qcelo", ".{}".format(quake_name), elos)
+    jdb.set("qcelo", ".['{}']".format(quake_name), elos)
     db.save()
     return elos
 

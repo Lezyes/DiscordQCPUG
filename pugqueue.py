@@ -80,7 +80,7 @@ async def register_to_queue(data_dict):
         queue_state = []
     queue_state.append(data_dict["player_data"]["quake_name"])
     if len(queue_state)==queue_cap:
-        await jdb_set(jdb, "queue", path = f"$.{queue}", value =  [])
+        await jdb_set(jdb, "queue", path = f"$.['{queue}']", value =  [])
         
         players_elo = {}
         for player_name in queue_state:
@@ -100,7 +100,7 @@ async def register_to_queue(data_dict):
         text+= f"\nTeam 1:{team1}\nTeam 2:{team2}\n"
         
     else:
-        await jdb_set(jdb, "queue", path = f"$.{queue}", value = queue_state)
+        await jdb_set(jdb, "queue", path = f"$.['{queue}']", value = queue_state)
         text += "{}: {}".format(queue, ",".join(queue_state))
     await data_dict["channel"].send(text)
     await clean_up_msg(data_dict)

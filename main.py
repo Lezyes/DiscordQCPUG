@@ -11,10 +11,14 @@ from pugqueue import queue_up, drop_from_queue, show_queue
 from registration import register_player
 
 db = redis.Redis(host='localhost', port=6379, db=0)
-for k in ["dcid","qcstats","qcelo", "queue"]:
+#Check existing
+for k in ["dcid","qcstats","qcelo"]:
     if not db.exists(k):
         print(f"{k} was missing from the DB!!!????!?!?!?!")
         db.json().set(k, '$', {})
+#reset 
+for k in ["queue"]:    
+    db.json().set(k, '$', {})
 
 logging.basicConfig(level=logging.WARNING)
 
