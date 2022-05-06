@@ -95,14 +95,14 @@ async def register_to_queue(data_dict):
                 player_elo_dict = {}
                 text+=f"{player_name} isn't in the DB, "
             players_elo[player_name] = player_elo_dict.get(game_mode,0)
-        text += f"\nRecomended teams for {game_mode_name} based on {balance_func_name} algorithm:\n"
+        balance_func_name = "ELO Balanced"    
+        text += f"\nRecomended teams for {queue} based on {balance_func_name} algorithm:\n"
         teams = await weighted_player_allocation(players_elo)
         # for team1, team2 in teams:
         team1, team2 = teams[0]
         team1 = ", ".join(team1)
         team2 = ", ".join(team2)
         text+= f"\nTeam 1:{team1}\nTeam 2:{team2}\n"
-        
     else:
         await jdb_set(jdb, "queue", path = f"$.['{queue}']", value = queue_state)
         text += "{}: {}".format(queue, ",".join(queue_state))
