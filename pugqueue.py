@@ -71,20 +71,24 @@ async def register_to_queue(data_dict):
     current_stage = "register_to_queue"
     text = ""
     jdb = data_dict["db"].json()
+    quake_name = data_dict["player_data"]["quake_name"]
     game_mode = [k for k,v in data_dict["selections"]["queue_up"].items() if isinstance(v,str)][0]
     team_size = [k for k,v in data_dict["selections"]["queue_up"].items() if isinstance(v,int)][0]
     queue = f"{game_mode} {team_size}v{team_size}"
     queue_cap = int(team_size)*2
-    queue_state = await jdb_get(jdb, "queue", f"$.{queue}")
+    queue_state = await jdb_get(jdb, "queue", f"$.['{queue}']")
     if not queue_state:
-        queue_state = []
-    queue_state.append(data_dict["player_data"]["quake_name"])
+        queue_state = set()
+    else:
+        queue_state = queue_state[0]
+    if quake_name not in queue_state:
+        queue_state.append(quake_name)
     if len(queue_state)==queue_cap:
-        await jdb_set(jdb, "queue", path = f"$.['{queue}']", value =  [])
+        await jdb_set(jdb, "queue", path = f"$.['{queue}']", value =  set())
         
         players_elo = {}
         for player_name in queue_state:
-            player_elo_dict = await jdb_get(jdb,"qcelo", "$.{}".format(player_name))
+            player_elo_dict = await jdb_get(jdb,"qcelo", "$.['{}']".format(player_name))
             if player_elo_dict:
                 player_elo_dict = player_elo_dict[0]
             else:
