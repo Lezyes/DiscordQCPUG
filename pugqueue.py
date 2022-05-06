@@ -76,11 +76,8 @@ async def register_to_queue(data_dict):
     team_size = [k for k,v in data_dict["selections"]["queue_up"].items() if isinstance(v,int)][0]
     queue = f"{game_mode} {team_size}v{team_size}"
     queue_cap = int(team_size)*2
-    queue_state = await jdb_get(jdb, "queue", f"$.['{queue}']")
-    if not queue_state:
-        queue_state = []
-    else:
-        queue_state = queue_state[0]
+    queue_state = await jdb_get_first(jdb, "queue", f"$.['{queue}']")
+    
     if quake_name not in queue_state:
         queue_state.append(quake_name)
     if len(queue_state)==queue_cap:
@@ -113,13 +110,6 @@ async def register_to_queue(data_dict):
 async def drop_from_queue(message,db):
     jdb = db.json()
 
-    if message.guild:
-        thread = await message.create_thread(name="Pickup Organizer", auto_archive_duration=60)
-        clean_up = True
-    else:
-        thread = message.channel
-        clean_up = False
-
     current_stage = "queue_up"
     author = message.author
     guild = message.guild
@@ -131,16 +121,13 @@ async def drop_from_queue(message,db):
                                                 "style": discord.ButtonStyle.primary
                                                 }
                                               )
-        return await data_dict["thread"].send("Please register your Quake name before trying to queue for a pickup", view=SelectView(data_dict))
+        return await data_dict["thread"].send("Please register your Quake name before trying interact with the queue for a pickup", view=SelectView(data_dict))
     
     player_data = player_data[0]
     quake_name = player_data["quake_name"]
     in_queues = []
-    queues = await jdb_get(jdb,"queue", "$")
-    if not queues:
-        queues = {}
-    else:
-        queues = queues[0]
+    queues = await jdb_get_first(jdb,"queue", "$")
+    
     nqueues = {}
     for queue, players in queues.items():
         if quake_name in players:
@@ -148,7 +135,7 @@ async def drop_from_queue(message,db):
             nqueues[queue] = [p for p in players if p!=quake_name]
     await jdb_set(jdb, "queue", path = "$", value = nqueues)
     
-    return await thread.send("Dropped from queues: {}".format(",".join(in_queues)))
+    return await channel.send("{} Dropped From Queues: {}".format(quake_name,",".join(in_queues)))
 
 async def show_queue(message,db):
     jdb = db.json()
