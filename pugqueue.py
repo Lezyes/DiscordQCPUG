@@ -1,6 +1,6 @@
 import discord
 from botui import SelectView,collect_selection_finish
-from db_utils import jdb_set, jdb_get
+from db_utils import jdb_set, jdb_get, jdb_get_first
 from dc_utils import clean_up_msg
 from balancing import weighted_player_allocation
 
@@ -153,36 +153,16 @@ async def drop_from_queue(message,db):
 async def show_queue(message,db):
     jdb = db.json()
 
-    if message.guild:
-        thread = await message.create_thread(name="Pickup Organizer", auto_archive_duration=60)
-        clean_up = True
-    else:
-        thread = message.channel
-        clean_up = False
-
     current_stage = "queue_up"
     author = message.author
     guild = message.guild
     channel = message.channel
-    player_data = await jdb_get(jdb,"dcid", "$.{}".format(author.id))
-    if not player_data:
-        data_dict["buttons"][current_stage].append({"callback_func":register_new_player,
-                                                "label": "Register Quake Name",
-                                                "style": discord.ButtonStyle.primary
-                                                }
-                                              )
-        return await data_dict["thread"].send("Please register your Quake name before trying to queue for a pickup", view=SelectView(data_dict))
-    
-    player_data = player_data[0]
-    quake_name = player_data["quake_name"]
+
     text = "Current active queues:\n"
-    queues = await jdb_get(jdb,"queue", "$")
-    if not queues:
-        queues = {}
-    else:
-        queues = queues[0]
+    queues = await jdb_get_first(jdb,"queue", "$")
+    
     for queue, players in queues.items():
         if players:
             text+= "{}: {}\n".format(queue, ",".join(players))
-    
-    return await thread.send(text)
+    await message.delete()
+    return await channel.send(text)
