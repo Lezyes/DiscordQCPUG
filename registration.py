@@ -151,7 +151,7 @@ async def show_player_stats(data_dict, interaction = None):
         quake_name = data_dict["player_data"]["quake_name"]
     else:
         return await data_dict["thread"].send("Error: DB entry for user id `{}` is missing your Quake name, please register first".format(data_dict["author"].id))
-    elos = jdb.get("qcelo", ".{}".format(quake_name))
+    elos = jdb.get("qcelo", ".['{}']".format(quake_name))
     text = f"{quake_name} ELO stats:\n"
     for mode, val in elos.items():
         text+="- {}: {:0.2f}\n".format(mode, val)
