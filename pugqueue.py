@@ -78,13 +78,13 @@ async def register_to_queue(data_dict):
     queue_cap = int(team_size)*2
     queue_state = await jdb_get(jdb, "queue", f"$.['{queue}']")
     if not queue_state:
-        queue_state = set()
+        queue_state = []
     else:
         queue_state = queue_state[0]
     if quake_name not in queue_state:
         queue_state.append(quake_name)
     if len(queue_state)==queue_cap:
-        await jdb_set(jdb, "queue", path = f"$.['{queue}']", value =  set())
+        await jdb_set(jdb, "queue", path = f"$.['{queue}']", value =  [])
         
         players_elo = {}
         for player_name in queue_state:
