@@ -123,7 +123,7 @@ async def assign_players(data_dict):
     text = ""
     players_elo = {}
     for player_name in players:
-        player_elo_dict = jdb.get("qcelo", "$.{}".format(player_name))
+        player_elo_dict = jdb.get("qcelo", "$.['{}']".format(player_name))
         if player_elo_dict:
             player_elo_dict = player_elo_dict[0]
         else:
