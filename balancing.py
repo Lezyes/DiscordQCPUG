@@ -2,21 +2,17 @@ from itertools import combinations
 from random import randint
 
 async def shuffle_list(players_elo):
-    l = list(players_elo.keys())
+    l = list(players_elo.items())
     for i in range(len(l) * 2):
         r = randint(0, len(l) - 1)
         l.append(l.pop(r))
-    return [(l[0::2], l[1::2])]
+    return [(dict(l[0::2]), dict(l[1::2]))]
 
 async def pick_from_top(players_elo):
     soreted_by_elo = sorted(players_elo.items(), key=lambda x:x[1], reverse=True)
-    team1_elos = soreted_by_elo[0::2] 
-    team2_elos = soreted_by_elo[1::2]
-    team1 = [p[0] for p in team1_elos]
-    team1.append("Total ELO: {}".format(sum([p[1] for p in team1_elos])))
-    team2 = [p[0] for p in team2_elos]
-    team2.append("Total ELO: {}".format(sum([p[1] for p in team2_elos])))
-    return [(team1, team2)]
+    team1_elos = dict(soreted_by_elo[0::2])
+    team2_elos = dict(soreted_by_elo[1::2])
+    return [(team1_elos, team2_elos)]
 
 async def weighted_player_allocation(players_elo):
     soreted_by_elo = sorted(players_elo.items(), key=lambda x:x[1], reverse=True)
@@ -30,9 +26,6 @@ async def weighted_player_allocation(players_elo):
     for team1_option in top3_teams:
         team1_elo = {p[0]:players_elo[p[0]] for p in team1_option[0]}
         team2_elo = {p:v for p,v in players_elo.items() if p not in team1_elo}
-        team1 = list(team1_elo.keys())
-        team2 = list(team2_elo.keys())
-        team1.append("Total ELO: {}".format(sum([v for v in team1_elo.values()])))
-        team2.append("Total ELO: {}".format(sum([v for v in team2_elo.values()])))
-        teams.append((team1,team2))
+        
+        teams.append((team1_elo,team2_elo))
     return teams

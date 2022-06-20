@@ -133,10 +133,19 @@ async def assign_players(data_dict):
     
     text += f"\nRecomended teams for {game_mode_name} based on {balance_func_name} algorithm:\n"
     teams = await balance_func(players_elo)
-    for team1, team2 in teams:
+    for team1_elo, team2_elo in teams:
+        team1_elo_sum = sum([v for v in team1_elo.values()])
+        team2_elo_sum = sum([v for v in team2_elo.values()])
+        ideal = (team1_elo_sum + team2_elo_sum)/2 
+        distance_from_ideal = abs(ideal - abs(team1_elo_sum - team2_elo_sum))/ideal
+        team1 = list(team1_elo.keys())
+        team2 = list(team2_elo.keys())
+        
+        team1.append("Total ELO: {}".format(team1_elo_sum))
+        team2.append("Total ELO: {}".format(team2_elo_sum))
         team1 = ", ".join(team1)
         team2 = ", ".join(team2)
-        text+= f"\nTeam 1:{team1}\nTeam 2:{team2}\n"
+        text+= f"\nTeam 1:{team1}\nTeam 2:{team2}\nDistance from ideal: {distance_from_ideal}\n"
     await data_dict["channel"].send(text)
     await clean_up_msg(data_dict)
 
