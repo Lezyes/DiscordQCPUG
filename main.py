@@ -40,7 +40,7 @@ async def on_ready():
         print(guild)
 
 
-async def time_to_next_quake_monday(message):
+async def time_to_next_quake_monday(message, mention = None):
     today = datetime.date.today()
     if not today.weekday()==0:
         monday = today + datetime.timedelta(days=-today.weekday(), weeks=1)
@@ -49,7 +49,15 @@ async def time_to_next_quake_monday(message):
     monday = datetime.datetime.fromisoformat(monday.isoformat())
     monday_quake = monday+ datetime.timedelta(hours=19, )
     ts = int(monday_quake.timestamp())
-    await message.channel.send(f"<t:{ts}:R>")
+    msg_text = f"<t:{ts}:R>"
+    if mention:
+        # mention_names = mention.split(" ")
+        # for mention_name in mention names:
+            # mention_role = get_mention(server.getRole(mention_name).mention)
+            # if mention_role:
+            #     mention_txt = mention_role.mention
+            #     msg_txt += mention_txt
+    await message.channel.send(msg_text)
     await message.delete()
 
 
@@ -77,6 +85,7 @@ async def on_message(ctx):
                 "$pickup":{"func":partial(start_pickup, db=db), "description":"Start a Pickup"},
                 "$pu":{"func":partial(start_pickup, db=db), "description":"Start a Pickup"},
                 "$tr":{"func":time_to_next_quake_monday, "description":"Post how much time untill next monday quake night"},
+                "$trm":{"func":partial(time_to_next_quake_monday, mention = message.content), "description":"tr for rude people"},
                 "$reg":{"func":partial(register_player, db = db), "description":"Register quake name"},
                 "$register":{"func":partial(register_player, db = db), "description":"Register quake name"},
                 "$queue":{"func":partial(queue_up, db = db), "description":"Queue up for a PUG"},
