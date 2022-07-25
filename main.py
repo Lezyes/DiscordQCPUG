@@ -39,6 +39,17 @@ async def on_ready():
     for guild in guilds:
         print(guild)
 
+async def get_mention(guild, mention_names):
+    mentions = [] 
+    for member in await guild.fetch_members():
+        if member.display_name in mention_names:
+            mentions.append(member.mention)
+    for f in [guild.fetch_channels, guild.fetch_roles]:
+        for i in await f():
+            if i.name in mention_names:
+                mentions.append(i.mention)
+    return mentions
+
 
 async def time_to_next_quake_monday(message, mention = None):
     today = datetime.date.today()
@@ -51,13 +62,14 @@ async def time_to_next_quake_monday(message, mention = None):
     ts = int(monday_quake.timestamp())
     msg_text = f"<t:{ts}:R>"
     if mention:
-        # mention_names = mention.split(" ")
-        # for mention_name in mention names:
-            # mention_role = get_mention(server.getRole(mention_name).mention)
-            # if mention_role:
-            #     mention_txt = mention_role.mention
-            #     msg_txt += mention_txt
-    await message.channel.send(msg_text)
+        mention_names = mention.split(" ")
+        if len(mention_names)>1:
+            mention_names = mention_names[1:]
+            if message.guild:
+                mention_refs = await get_mention(message.guild, mention_names)
+                if mention_refs:
+                    msg_text += " ".join(mention_refs)
+    await message.channel.send(msg_text, allowed_mentions = discord.AllowedMentions().all())
     await message.delete()
 
 
