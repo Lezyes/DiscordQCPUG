@@ -119,7 +119,7 @@ async def calc_elos(data_dict):
                     ]
 
     elos = {name:mode_elo(data_dict["qcstats"], mode) for name,mode in game_modes.items()}
-    avg = lambda data:sum(data)/len(data)
+    avg = lambda data:sum(data)/len(data) if data else 0
     elos["Objective"] = avg([v for k,v in elos.items() if k in objective_modes and v>0])
     elos["Killing"] = avg([v for k,v in elos.items() if k in killing_modes and v>0])
 
