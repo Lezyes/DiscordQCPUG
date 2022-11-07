@@ -5,6 +5,7 @@ from functools import partial
 from botui import InputModal, SelectView, selection_all, collect_selection_finish, button_pressed, buttons_all, collect_buttons_finish
 from db_utils import jdb_set
 from dc_utils import clean_up_msg
+import numpy as np
 
 async def get_player_stats(player_tag):
     url = f"https://quake-stats.bethesda.net/api/v2/Player/Stats?name={player_tag}"
@@ -92,7 +93,7 @@ def mode_stats(player_stats, game_mode):
     game_mode_stats["avg_score"] = game_mode_stats["score"]/max(1,game_mode_stats["games_count"])
     game_mode_stats["avg_score_per_minute"] = game_mode_stats["score"]/max(1,game_mode_stats["play_time"]/1000/60)
     game_mode_stats["mode_avg_score"] = game_mode_stats["avg_score"]/max(1,game_mode_stats["avg_score_per_minute"])
-    game_mode_stats["mode_score"] = game_mode_stats["avg_score_per_minute"]*game_mode_stats["win_ratio"]
+    game_mode_stats["mode_score"] = game_mode_stats["avg_score_per_minute"]*np.min(game_mode_stats["win_ratio"] if game_mode_stats["games_count"]>=100 else 1,2)
     return game_mode_stats
 
 def mode_elo(player_stats, game_mode):
