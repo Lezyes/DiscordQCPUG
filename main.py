@@ -58,7 +58,7 @@ async def time_to_next_quake_monday(message, mention = None):
     else:
         monday = today
     monday = datetime.datetime.fromisoformat(monday.isoformat())
-    monday_quake = monday+ datetime.timedelta(hours=19, )
+    monday_quake = monday+ datetime.timedelta(hours=20, )
     ts = int(monday_quake.timestamp())
     msg_text = f"<t:{ts}:R>"
     if mention:
