@@ -3,3 +3,5 @@
 /__pycache*
 secret.py
 *.ipynb
+redis_qc_data
+ocr
