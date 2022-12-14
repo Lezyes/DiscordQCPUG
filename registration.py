@@ -5,7 +5,6 @@ from functools import partial
 from botui import InputModal, SelectView, selection_all, collect_selection_finish, button_pressed, buttons_all, collect_buttons_finish
 from db_utils import jdb_set
 from dc_utils import clean_up_msg
-import numpy as np
 
 async def get_player_stats(player_tag):
     url = f"https://quake-stats.bethesda.net/api/v2/Player/Stats?name={player_tag}"
