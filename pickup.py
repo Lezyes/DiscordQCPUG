@@ -207,7 +207,7 @@ from PIL import Image, ImageOps
 from functools import reduce
 from io import BytesIO
 import requests
-
+from uuid import uuid4
 
 def clear_img(img, thresh = 180):
     fn = lambda x : 255 if x > thresh else 0
@@ -253,12 +253,15 @@ async def ocr_balance(message, db):
     print(len(message.attachments))
     
     for atc in message.attachments:
-        
-        url = atc.url
-        print(url)
-        response = requests.get(url)
-        img = Image.open(BytesIO(response.content))
-        imgs = get_names(img, thresh = 120)
-        ci = reduce(get_concat_v, imgs)
-        ci.save("/home/barakor/Downloads/testb.png")
-        print("save to /home/barakor/Downloads/testb.png")
+        try:
+            url = atc.url
+            print(url)
+            response = requests.get(url)
+            img = Image.open(BytesIO(response.content))
+            imgs = get_names(img, thresh = 120)
+            ci = reduce(get_concat_v, imgs)
+            p = "/ocr/{}.png".format(str(uuid4()))
+            ci.save(p)
+            print(f"save to {p}")
+        except:
+            pass
