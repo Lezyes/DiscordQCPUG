@@ -1,1 +1,0 @@
-docker run -d --name redis-qc -p 6379:6379 -v /redis_qc_data/:/data redis/redis-stack-server:latest 
