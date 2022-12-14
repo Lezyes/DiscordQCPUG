@@ -54,12 +54,15 @@ async def players_source(data_dict):
 def players_from_selection(data_dict):
     names = set()
     for v in data_dict["selections"]["players_source"].values() :
-        for m in v.members:
-            player_name = data_dict["db"].json().get("dcid", "$.{}.quake_name".format(m.id))
-            if player_name:
-                names.add(player_name[0])
-            else:
-                names.add(m.display_name)
+        if v == "ocr":
+            data_dict["thread"].send("Please reply with the screenshoot", view=SelectView(data_dict))
+        else :
+            for m in v.members:
+                player_name = data_dict["db"].json().get("dcid", "$.{}.quake_name".format(m.id))
+                if player_name:
+                    names.add(player_name[0])
+                else:
+                    names.add(m.display_name)
     return data_dict.get("players", set()).union(names)
 
 
@@ -190,9 +193,72 @@ async def start_pickup(message, db):
     for guild_channel in guild.channels:
         if guild_channel.id in channels:
             sources[guild_channel.name] = guild_channel
+    sources["screenshot"] = "ocr"
     data_dict["flow"] = {"players_source": pick_players,
                          "pick_players": choose_balance_func,
                          "choose_balance_func": assign_players}
     data_dict["dropdowns"]["players_source"] = sources
 
     await players_source(data_dict)
+
+
+
+from PIL import Image, ImageOps
+from functools import reduce
+from io import BytesIO
+import requests
+
+
+def clear_img(img, thresh = 180):
+    fn = lambda x : 255 if x > thresh else 0
+    r = img.convert('L').point(fn, mode='1')
+    return ImageOps.invert(r)
+
+
+
+def get_names(img, thresh = 180):
+    imgs = []
+    width, height = img.size
+    pos_list = [
+        (0.208, 0.175), # left top left
+        (0.265, 0.340), # left top right
+        (0.776, 0.065), # left bottom left
+        (0.838, 0.275), # left bottom right
+        
+        
+        (0.267, 0.558), # right top left
+        (0.208, 0.725), # right top right
+        (0.838, 0.625), # right bottom left
+        (0.772, 0.830), # right bottom right        
+               ]     
+    
+    
+    #[(top,left)]
+    for top_pos_precent, left_pos_precent in pos_list:
+        top = height * top_pos_precent
+        bottom = top + height*0.0225
+        left = width * left_pos_precent
+        right = left + width*0.105
+        imgs.append(clear_img(img.crop((left, top, right, bottom)),thresh = thresh))
+    return imgs
+
+def get_concat_v(im1, im2):
+    dst = Image.new('RGB', (im1.width, im1.height + im2.height))
+    dst.paste(im1, (0, 0))
+    dst.paste(im2, (0, im1.height))
+    return dst
+
+async def ocr_balance(message, db):
+    print("OCR BALANCE")
+    print(len(message.attachments))
+    
+    for atc in message.attachments:
+        
+        url = atc.url
+        print(url)
+        response = requests.get(url)
+        img = Image.open(BytesIO(response.content))
+        imgs = get_names(img, thresh = 120)
+        ci = reduce(get_concat_v, imgs)
+        ci.save("/home/barakor/Downloads/testb.png")
+        print("save to /home/barakor/Downloads/testb.png")
