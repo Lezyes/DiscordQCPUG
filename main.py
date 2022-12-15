@@ -7,7 +7,7 @@ import redis
 from functools import partial
 from asyncio import TimeoutError
 from secret import token
-from pickup import start_pickup, ocr_balance
+from pickup import start_pickup
 from pugqueue import queue_up, drop_from_queue, show_queue
 from registration import register_player
 
@@ -98,7 +98,6 @@ async def on_message(ctx):
     command_dict = {
                 "$pickup":{"func":partial(start_pickup, db=db), "description":"Start a Pickup"},
                 "$pu":{"func":partial(start_pickup, db=db), "description":"Start a Pickup"},
-                "$bl":{"func":partial(ocr_balance, db=db), "description":"balance with OCR"},
                 "$tr":{"func":time_to_next_quake_monday, "description":"Post how much time untill next monday quake night"},
                 "$trm":{"func":partial(time_to_next_quake_monday, mention = message.content), "description":"tr for rude people"},
                 "$reg":{"func":partial(register_player, db = db), "description":"Register quake name"},

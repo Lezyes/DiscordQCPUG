@@ -2,4 +2,3 @@ py-cord==2.3.2
 pytest==7.1.1
 redis==4.1.4
 requests==2.27.1
-Pillow==9.3.0

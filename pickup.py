@@ -7,6 +7,8 @@ from functools import partial
 from balancing import shuffle_list, pick_from_top, weighted_player_allocation
 from db_utils import jdb_set, jdb_get
 from dc_utils import clean_up_msg
+import requests
+
 
 async def add_players_manually_input_callback(self, interaction: discord.Interaction):
     embed = discord.Embed(title="Adding Players To Game, Please Wait", color=discord.Color.random())
@@ -160,7 +162,7 @@ async def start_pickup(message, db):
     else:
         thread = message.channel
         clean_up = False
-
+    
     author = message.author
     guild = message.guild
     channel = message.channel
@@ -193,75 +195,26 @@ async def start_pickup(message, db):
     for guild_channel in guild.channels:
         if guild_channel.id in channels:
             sources[guild_channel.name] = guild_channel
-    sources["screenshot"] = "ocr"
     data_dict["flow"] = {"players_source": pick_players,
                          "pick_players": choose_balance_func,
                          "choose_balance_func": assign_players}
     data_dict["dropdowns"]["players_source"] = sources
 
+    if len(message.attachments)>0:
+        qcocr = """http://tessarest/qcocr/"""
+        for atc in message.attachments:
+            try:
+                url = atc.url
+                get_request_url = "{}?url={}".format(qcocr, url)
+                
+
+                response_dict = requests.get(get_request_url).json()
+                data_dict["players"] = data_dict["players"].union(response_dict["players_names"])
+                print (response_dict)
+            except:
+                pass
+
+
     await players_source(data_dict)
 
 
-
-from PIL import Image, ImageOps
-from functools import reduce
-from io import BytesIO
-import requests
-from uuid import uuid4
-
-def clear_img(img, thresh = 180):
-    fn = lambda x : 255 if x > thresh else 0
-    r = img.convert('L').point(fn, mode='1')
-    return ImageOps.invert(r)
-
-
-
-def get_names(img, thresh = 180):
-    imgs = []
-    width, height = img.size
-    pos_list = [
-        (0.208, 0.175), # left top left
-        (0.265, 0.340), # left top right
-        (0.776, 0.065), # left bottom left
-        (0.838, 0.275), # left bottom right
-        
-        
-        (0.267, 0.558), # right top left
-        (0.208, 0.725), # right top right
-        (0.838, 0.625), # right bottom left
-        (0.772, 0.830), # right bottom right        
-               ]     
-    
-    
-    #[(top,left)]
-    for top_pos_precent, left_pos_precent in pos_list:
-        top = height * top_pos_precent
-        bottom = top + height*0.0225
-        left = width * left_pos_precent
-        right = left + width*0.105
-        imgs.append(clear_img(img.crop((left, top, right, bottom)),thresh = thresh))
-    return imgs
-
-def get_concat_v(im1, im2):
-    dst = Image.new('RGB', (im1.width, im1.height + im2.height))
-    dst.paste(im1, (0, 0))
-    dst.paste(im2, (0, im1.height))
-    return dst
-
-async def ocr_balance(message, db):
-    print("OCR BALANCE")
-    print(len(message.attachments))
-    
-    for atc in message.attachments:
-        try:
-            url = atc.url
-            print(url)
-            response = requests.get(url)
-            img = Image.open(BytesIO(response.content))
-            imgs = get_names(img, thresh = 120)
-            ci = reduce(get_concat_v, imgs)
-            p = "/ocr/{}.png".format(str(uuid4()))
-            ci.save(p)
-            print(f"save to {p}")
-        except:
-            pass
