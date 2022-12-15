@@ -28,7 +28,8 @@ async def refresh_all_players_data(data_dict, interaction=None):
         await clean_up_msg(data_dict)
     elif interaction:
         await interaction.message.delete()
-    
+
+
 async def refresh_player_data(data_dict, interaction = None):
     if data_dict.get("player_data",{}).get("quake_name"):
         quake_name = data_dict["player_data"]["quake_name"]

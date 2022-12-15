@@ -3,7 +3,7 @@ from botui import InputModal, SelectView, selection_all, collect_selection_finis
 from guild_games_roles import guilds_roles
 import json
 from functools import partial
-
+from registration import refresh_player_data
 from balancing import shuffle_list, pick_from_top, weighted_player_allocation
 from db_utils import jdb_set, jdb_get
 from dc_utils import clean_up_msg
@@ -132,8 +132,17 @@ async def assign_players(data_dict):
         if player_elo_dict:
             player_elo_dict = player_elo_dict[0]
         else:
-            player_elo_dict = {}
-            text+=f"{player_name} isn't in the DB, "
+            try:
+                data_dict["player_data"]["quake_name"]
+                player_data_dict = {"player_data":{"quake_name":player_name},
+                                    "channel":data_dict["channel"],
+                                    "db":data_dict["db"]}
+                await refresh_player_data(player_data_dict)
+                
+                pass
+            except:
+                player_elo_dict = {}
+                text+=f"{player_name} isn't in the DB and failed to get stats "
         players_elo[player_name] = player_elo_dict.get(game_mode,0) 
     
     text += f"\nRecomended teams for {game_mode_name} based on {balance_func_name} algorithm:\n"
