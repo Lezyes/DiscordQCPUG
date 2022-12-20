@@ -1,0 +1,11 @@
+#!/bin/bash
+# docker run --rm -it --name qcocr -e "TESSDATA_PREFIX=/app" -v /home/barakor/gits/DiscordQCPUG/ocr/:/app -w /app clearlinux/tesseract-ocr tesseract *.png stdout --oem 1
+
+
+# docker build -t tessarest:latest ./ 
+# docker run --rm -it --name tessarest -p 8000:80 tessarest:latest
+
+
+docker build -t tessarest:latest ./ 
+# testing run: mounting local dir to code so live changes are loaded into the container
+docker run --rm -it --name tessarest -v $(pwd):/code --net qcbot-net  -p 6969:80 tessarest:latest
