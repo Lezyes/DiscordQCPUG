@@ -129,7 +129,7 @@ async def calc_elos(data_dict):
     elos["Killing"] = avg([v for k,v in elos.items() if k in killing_modes and v>0])
 
     jdb.set("qcelo", ".['{}']".format(quake_name), elos)
-    db.save()
+    db.bgsave()
     return elos
 
 

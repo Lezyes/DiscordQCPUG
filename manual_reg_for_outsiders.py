@@ -51,7 +51,7 @@ def calc_elos(quake_name, player_stats):
     elos["Killing"] = avg([v for k,v in elos.items() if k in killing_modes and v>0])
 
     jdb.set("qcelo", ".{}".format(quake_name), elos)
-    db.save()
+    db.bgsave()
     return elos
 def get_player_stats(player_tag):
     url = f"https://quake-stats.bethesda.net/api/v2/Player/Stats?name={player_tag}"
