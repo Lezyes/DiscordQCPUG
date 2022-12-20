@@ -13,10 +13,11 @@ class InputModal(discord.ui.Modal):
                                                required = False))
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         await self.callback_func(self, interaction)
 
 class SelectionGenericButton(discord.ui.Button):
-    def __init__(self, data_dict, callback_func, label=None, style = None, original_user_only = True):
+    def __init__(self, data_dict, callback_func, label=None, style = None, original_user_only = True, defer = True):
         if not style:
             style = discord.ButtonStyle.success
         if not label:
@@ -25,11 +26,14 @@ class SelectionGenericButton(discord.ui.Button):
         self.current_stage = data_dict["current_stage"]
         self.callback_func = callback_func
         self.original_user_only = original_user_only
+        self.defer = defer
         super().__init__(
             label=label,
             style=style,
         )
     async def callback(self, interaction):
+        if self.defer:
+            await interaction.response.defer()
         if not self.original_user_only or interaction.user.id == self.data_dict["author"].id:
             return await self.callback_func(self, interaction, self.data_dict)
 
@@ -47,6 +51,9 @@ class Dropdown(discord.ui.Select):
             max_values=max_values,
             options=select_options,
         )
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
 
 class SelectView(discord.ui.View):
     def __init__(self, data_dict):

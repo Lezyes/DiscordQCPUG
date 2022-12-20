@@ -12,7 +12,7 @@ import requests
 
 async def add_players_manually_input_callback(self, interaction: discord.Interaction):
     embed = discord.Embed(title="Adding Players To Game, Please Wait", color=discord.Color.random())
-    await interaction.response.send_message(embeds=[embed], delete_after = 0)
+    await interaction.followup.send(embeds=[embed], delete_after = 0)
     data_dict = self.data_dict
     original_interaction = self.original_interaction
     players = set()
@@ -87,7 +87,8 @@ async def pick_players(data_dict):
                      "style": discord.ButtonStyle.danger},
                     {"callback_func": add_players_manually,
                      "label": "Add Players Manually",
-                     "style": discord.ButtonStyle.danger},
+                     "style": discord.ButtonStyle.danger,
+                     "defer":False},
                     {"callback_func": collect_buttons_finish,
                      "label": "Continue With Current Selection",
                      "style": discord.ButtonStyle.success}
@@ -150,7 +151,7 @@ async def assign_players(data_dict):
     for team1_elo, team2_elo in teams:
         team1_elo_sum = sum([v for v in team1_elo.values()])
         team2_elo_sum = sum([v for v in team2_elo.values()])
-        ideal = (team1_elo_sum + team2_elo_sum)/2 
+        ideal = (team1_elo_sum + team2_elo_sum)/2 or 1
         distance_from_ideal = abs((abs(team1_elo_sum - team2_elo_sum)/2)/ideal)
         team1 = list(team1_elo.keys())
         team2 = list(team2_elo.keys())

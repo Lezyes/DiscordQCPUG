@@ -1,3 +1,4 @@
+import logging
 import discord
 import logging
 logging.basicConfig(level=logging.WARNING)
@@ -24,13 +25,13 @@ for k in ["queue"]:
     db.json().set(k, '$', {})
 
 
-# intents = discord.Intents.all()
 intents = discord.Intents.none()
 intents.guilds = True
 intents.members = True
 intents.voice_states = True
 intents.messages = True
 intents.reactions = True
+intents.message_content = True
 
 bot = discord.Bot(intents=intents)
 
@@ -40,6 +41,7 @@ async def on_ready():
     guilds = bot.guilds
     for guild in guilds:
         print(guild)
+
 
 async def get_mention(guild, mention_names):
     mentions = [] 
@@ -87,7 +89,6 @@ async def help_msg(message, command_dict):
     await message.channel.send(text)
     await message.delete()
 
-
 @bot.listen('on_message')
 async def on_message(ctx):
     if ctx.author.id!=bot.user.id:
@@ -112,5 +113,6 @@ async def on_message(ctx):
     command_dict["$help"]["func"] = partial(help_msg, command_dict = command_dict)
 
     return [await cmd["func"](message) for option,cmd in command_dict.items() if message.content.startswith(option)]
-    
+
+
 bot.run(token)
