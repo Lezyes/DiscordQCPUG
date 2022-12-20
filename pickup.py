@@ -220,7 +220,6 @@ async def start_pickup(message, db):
 
                 response_dict = requests.get(get_request_url).json()
                 data_dict["players"] = data_dict["players"].union(response_dict["players_names"])
-                print (response_dict)
             except:
                 pass
 
