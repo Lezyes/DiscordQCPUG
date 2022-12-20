@@ -161,6 +161,7 @@ async def assign_players(data_dict):
         team1 = ", ".join(team1)
         team2 = ", ".join(team2)
         text+= "\nTeam 1:{}\nTeam 2:{}\nIdeal: {:0.2f}%\n".format(team1,team2, distance_from_ideal*100)
+    text+="\n" + ", ".join(["{}:{}".format(k,v) for k,v in players_elo.items()])
     await data_dict["channel"].send(text)
     await clean_up_msg(data_dict)
 
