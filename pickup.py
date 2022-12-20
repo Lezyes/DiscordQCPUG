@@ -3,14 +3,16 @@ from botui import InputModal, SelectView, selection_all, collect_selection_finis
 from guild_games_roles import guilds_roles
 import json
 from functools import partial
-
+from registration import refresh_player_data
 from balancing import shuffle_list, pick_from_top, weighted_player_allocation
 from db_utils import jdb_set, jdb_get
 from dc_utils import clean_up_msg
+import requests
+
 
 async def add_players_manually_input_callback(self, interaction: discord.Interaction):
     embed = discord.Embed(title="Adding Players To Game, Please Wait", color=discord.Color.random())
-    await interaction.response.send_message(embeds=[embed], delete_after = 0)
+    await interaction.followup.send(embeds=[embed], delete_after = 0)
     data_dict = self.data_dict
     original_interaction = self.original_interaction
     players = set()
@@ -54,12 +56,15 @@ async def players_source(data_dict):
 def players_from_selection(data_dict):
     names = set()
     for v in data_dict["selections"]["players_source"].values() :
-        for m in v.members:
-            player_name = data_dict["db"].json().get("dcid", "$.{}.quake_name".format(m.id))
-            if player_name:
-                names.add(player_name[0])
-            else:
-                names.add(m.display_name)
+        if v == "ocr":
+            data_dict["thread"].send("Please reply with the screenshoot", view=SelectView(data_dict))
+        else :
+            for m in v.members:
+                player_name = data_dict["db"].json().get("dcid", "$.{}.quake_name".format(m.id))
+                if player_name:
+                    names.add(player_name[0])
+                else:
+                    names.add(m.display_name)
     return data_dict.get("players", set()).union(names)
 
 
@@ -82,7 +87,8 @@ async def pick_players(data_dict):
                      "style": discord.ButtonStyle.danger},
                     {"callback_func": add_players_manually,
                      "label": "Add Players Manually",
-                     "style": discord.ButtonStyle.danger},
+                     "style": discord.ButtonStyle.danger,
+                     "defer":False},
                     {"callback_func": collect_buttons_finish,
                      "label": "Continue With Current Selection",
                      "style": discord.ButtonStyle.success}
@@ -127,8 +133,17 @@ async def assign_players(data_dict):
         if player_elo_dict:
             player_elo_dict = player_elo_dict[0]
         else:
-            player_elo_dict = {}
-            text+=f"{player_name} isn't in the DB, "
+            try:
+                data_dict["player_data"]["quake_name"]
+                player_data_dict = {"player_data":{"quake_name":player_name},
+                                    "channel":data_dict["channel"],
+                                    "db":data_dict["db"]}
+                await refresh_player_data(player_data_dict)
+                
+                pass
+            except:
+                player_elo_dict = {}
+                text+=f"{player_name} isn't in the DB and failed to get stats "
         players_elo[player_name] = player_elo_dict.get(game_mode,0) 
     
     text += f"\nRecomended teams for {game_mode_name} based on {balance_func_name} algorithm:\n"
@@ -136,7 +151,7 @@ async def assign_players(data_dict):
     for team1_elo, team2_elo in teams:
         team1_elo_sum = sum([v for v in team1_elo.values()])
         team2_elo_sum = sum([v for v in team2_elo.values()])
-        ideal = (team1_elo_sum + team2_elo_sum)/2 
+        ideal = (team1_elo_sum + team2_elo_sum)/2 or 1
         distance_from_ideal = abs((abs(team1_elo_sum - team2_elo_sum)/2)/ideal)
         team1 = list(team1_elo.keys())
         team2 = list(team2_elo.keys())
@@ -157,7 +172,7 @@ async def start_pickup(message, db):
     else:
         thread = message.channel
         clean_up = False
-
+    
     author = message.author
     guild = message.guild
     channel = message.channel
@@ -195,4 +210,21 @@ async def start_pickup(message, db):
                          "choose_balance_func": assign_players}
     data_dict["dropdowns"]["players_source"] = sources
 
+    if len(message.attachments)>0:
+        qcocr = """http://tessarest/qcocr/"""
+        for atc in message.attachments:
+            try:
+                url = atc.url
+                get_request_url = "{}?url={}".format(qcocr, url)
+                
+
+                response_dict = requests.get(get_request_url).json()
+                data_dict["players"] = data_dict["players"].union(response_dict["players_names"])
+                print (response_dict)
+            except:
+                pass
+
+
     await players_source(data_dict)
+
+

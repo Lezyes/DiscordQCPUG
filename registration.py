@@ -28,7 +28,8 @@ async def refresh_all_players_data(data_dict, interaction=None):
         await clean_up_msg(data_dict)
     elif interaction:
         await interaction.message.delete()
-    
+
+
 async def refresh_player_data(data_dict, interaction = None):
     if data_dict.get("player_data",{}).get("quake_name"):
         quake_name = data_dict["player_data"]["quake_name"]
@@ -48,7 +49,7 @@ async def refresh_player_data(data_dict, interaction = None):
 
 async def get_player_name_input_callback(self, interaction: discord.Interaction, register = False):
     embed = discord.Embed(title="Getting Player's Data, Please Wait", color=discord.Color.random())
-    await interaction.response.send_message(embeds=[embed], delete_after = 0)    
+    await interaction.followup.send(embeds=[embed], delete_after = 0)    
     data_dict = self.data_dict
     clean_up = data_dict["clean_up"]
     data_dict["clean_up"] = False
@@ -208,12 +209,14 @@ async def register_player(message, db):
         jdb.set("dcid", ".{}".format(author.id), {})
     data_dict["buttons"][current_stage].append({"callback_func":register_new_player,
                                                 "label": "Register Quake Name",
-                                                "style": discord.ButtonStyle.primary
+                                                "style": discord.ButtonStyle.primary,
+                                                "defer":False
                                                 }
                                               )
     data_dict["buttons"][current_stage].append({"callback_func":register_outsider,
                                                 "label": "Register Outsider",
-                                                "style": discord.ButtonStyle.primary
+                                                "style": discord.ButtonStyle.primary,
+                                                "defer":False
                                                 }
                                               )
     if author.id==88533822521507840:
