@@ -1,5 +1,8 @@
 import logging
 import discord
+import logging
+logging.basicConfig(level=logging.WARNING)
+
 import datetime
 import redis 
 from functools import partial
@@ -10,7 +13,6 @@ from pugqueue import queue_up, drop_from_queue, show_queue
 from registration import register_player
 
 
-from discord.ext import commands
 
 db = redis.Redis(host='redis-qc', port=6379, db=0)
 #Check existing
