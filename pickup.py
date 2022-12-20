@@ -134,15 +134,15 @@ async def assign_players(data_dict):
             player_elo_dict = player_elo_dict[0]
         else:
             try:
-                data_dict["player_data"]["quake_name"]
                 player_data_dict = {"player_data":{"quake_name":player_name},
                                     "channel":data_dict["channel"],
+                                    "clean_up":False,
                                     "db":data_dict["db"]}
-                await refresh_player_data(player_data_dict)
+                player_elo_dict = await refresh_player_data(player_data_dict)
                 
-                pass
-            except:
+            except Exception as e:
                 player_elo_dict = {}
+            if player_elo_dict=={}:
                 text+=f"{player_name} isn't in the DB and failed to get stats "
         players_elo[player_name] = player_elo_dict.get(game_mode,0) 
     

@@ -30,21 +30,25 @@ async def refresh_all_players_data(data_dict, interaction=None):
         await interaction.message.delete()
 
 
-async def refresh_player_data(data_dict, interaction = None):
+async def refresh_player_data(data_dict, interaction = None, show_results = True):
     if data_dict.get("player_data",{}).get("quake_name"):
         quake_name = data_dict["player_data"]["quake_name"]
     else:
-        return await data_dict["channel"].send("Error: DB entry for user id `{}` is missing your Quake name, please register first".format(data_dict["author"].id))
+        await data_dict["channel"].send("Error: DB entry for user id `{}` is missing your Quake name, please register first".format(data_dict["author"].id))
+        return {}
     player_stats = await get_player_stats(quake_name)
     if player_stats.get("code")==404:
-        return await data_dict["channel"].send("Error: 404 `{}` is resulting in a 404 from quake-stats api".format(quake_name))
+        await data_dict["channel"].send("Error: 404 `{}` is resulting in a 404 from quake-stats api".format(quake_name))
+        return {}
     data_dict["qcstats"] = player_stats
     db = data_dict["db"]
     jdb = db.json()
     
     await jdb_set(jdb, key="qcstats", path =  ".['{}']".format(quake_name), value = player_stats)
     elos = await calc_elos(data_dict)
-    return await show_player_stats(data_dict)
+    if show_results:
+        await show_player_stats(data_dict)
+    return elos
 
 
 async def get_player_name_input_callback(self, interaction: discord.Interaction, register = False):
@@ -158,7 +162,7 @@ async def show_player_stats(data_dict, interaction = None):
     for mode, val in elos.items():
         text+="- {}: {:0.2f}\n".format(mode, val)
     await data_dict["channel"].send(text)
-    if data_dict["clean_up"]:
+    if data_dict.get("clean_up"):
         await clean_up_msg(data_dict)
     elif interaction:
         await interaction.message.delete()
