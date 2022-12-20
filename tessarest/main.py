@@ -24,7 +24,9 @@ async def qcocr(url: str):
     game_mode_cmd = f"tesseract {game_mode_img_path} stdout --oem 1"
 
     players_names = subprocess.check_output(players_names_cmd, shell = True).splitlines()
+    players_names = [p.lower() for p in players_names]
     game_mode = subprocess.check_output(game_mode_cmd, shell = True).splitlines()
+    game_mode = [gm.lower() for gm in game_mode]
 
     os.remove(player_names_img_path)
     os.remove(game_mode_img_path)
