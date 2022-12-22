@@ -1,0 +1,30 @@
+version: "0.1"
+services:
+  redis-qc:
+    image: "redis/redis-stack-server:6.2.6-v0"
+    networks:
+      - qcbot-net
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_qc_data/:/data
+
+  tessarest:
+    build: ./tessarest
+    networks:
+      - qcbot-net
+    ports:
+      - "6969:80"
+
+  qcbot:
+    build: .
+    networks:
+      - qcbot-net
+    ports:
+      - "6443:443"
+    volumes:
+      - .:/code
+
+networks:
+  # The presence of these objects is sufficient to define them
+  qcbot-net: {}
