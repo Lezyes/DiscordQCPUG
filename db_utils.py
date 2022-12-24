@@ -12,8 +12,6 @@ async def jdb_get_first(jdb, key, path):
         else:
             return item
 
-
-
 async def jdb_set(jdb, key, value, path = None):
     if path:
         return jdb.set(key, path, value)

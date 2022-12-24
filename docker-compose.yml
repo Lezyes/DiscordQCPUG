@@ -5,7 +5,7 @@ services:
     networks:
       - qcbot-net
     ports:
-      - "6379:6379"
+      - "6379"
     volumes:
       - ./redis_qc_data/:/data
 
@@ -14,14 +14,14 @@ services:
     networks:
       - qcbot-net
     ports:
-      - "6969:80"
+      - "80"
 
   qcbot:
     build: .
     networks:
       - qcbot-net
     ports:
-      - "6443:443"
+      - "443"
     volumes:
       - .:/code
 
