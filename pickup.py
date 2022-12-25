@@ -8,7 +8,8 @@ from balancing import shuffle_list, pick_from_top, weighted_player_allocation
 from db_utils import jdb_set, jdb_get
 from dc_utils import clean_up_msg
 import requests
-
+from utils import log
+import logging
 
 async def add_players_manually_input_callback(self, interaction: discord.Interaction):
     embed = discord.Embed(title="Adding Players To Game, Please Wait", color=discord.Color.random())
@@ -141,6 +142,7 @@ async def assign_players(data_dict):
                 player_elo_dict = await refresh_player_data(player_data_dict)
                 
             except Exception as e:
+                logging.exception("failed to get player data: {}".format(str(e)))
                 player_elo_dict = {}
             if player_elo_dict=={}:
                 text+=f"{player_name} isn't in the DB and failed to get stats "

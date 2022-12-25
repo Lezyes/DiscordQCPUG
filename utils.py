@@ -1,5 +1,5 @@
 import logging
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.ERROR)
 
 def log(msg,level=None, *args, **kwargs):
     if level is None:
