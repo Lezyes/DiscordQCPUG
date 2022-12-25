@@ -6,6 +6,16 @@ from quake_ocr import process_image
 import os
 import subprocess
 
+import logging
+logging.basicConfig(level=logging.WARNING)
+
+def log(msg,level=None, *args, **kwargs):
+    if level is None:
+        level = logging.getLogger().level
+    return logging.log(level, msg, *args, **kwargs)
+
+    
+
 app = FastAPI()
 
 
@@ -17,7 +27,7 @@ async def read_root():
 @app.get("/qcocr/")
 async def qcocr(url: str):
     images = await process_image(url)
-    print(images)
+    log(images)
     player_names_img_path = images.get("player_names_img_path")
     game_mode_img_path = images.get("game_mode_img_path")
     players_names_cmd = f"tesseract {player_names_img_path} stdout --oem 1"

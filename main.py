@@ -1,7 +1,6 @@
 import logging
 import discord
-import logging
-logging.basicConfig(level=logging.WARNING)
+from utils import log 
 
 import datetime
 import redis 
@@ -18,7 +17,7 @@ db = redis.Redis(host='redis-qc', port=6379, db=0)
 #Check existing
 for k in ["dcid","qcstats","qcelo"]:
     if not db.exists(k):
-        print(f"{k} was missing from the DB!!!????!?!?!?!")
+        log(f"{k} was missing from the DB!!!????!?!?!?!")
         db.json().set(k, '$', {})
 #reset 
 for k in ["queue"]:    
@@ -37,10 +36,10 @@ bot = discord.Bot(intents=intents)
 
 @bot.listen()
 async def on_ready():
-    print('We have logged in as {0.user}'.format(bot))
+    log('We have logged in as {0.user}'.format(bot))
     guilds = bot.guilds
     for guild in guilds:
-        print(guild)
+        log(guild)
 
 
 async def get_mention(guild, mention_names):
