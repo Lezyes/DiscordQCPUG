@@ -17,13 +17,13 @@ services:
       - "80"
 
   qcbot:
-    build: .
+    build: ./balance_bot/src
     networks:
       - qcbot-net
     ports:
       - "443"
-    volumes:
-      - .:/code
+    # volumes:
+    #   - .:/code
 
 networks:
   # The presence of these objects is sufficient to define them
