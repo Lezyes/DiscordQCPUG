@@ -98,7 +98,7 @@ def mode_stats(player_stats, game_mode):
     game_mode_stats["avg_score"] = game_mode_stats["score"]/max(1,game_mode_stats["games_count"])
     game_mode_stats["avg_score_per_minute"] = game_mode_stats["score"]/max(1,game_mode_stats["play_time"]/1000/60)
     game_mode_stats["mode_avg_score"] = game_mode_stats["avg_score"]/max(1,game_mode_stats["avg_score_per_minute"])
-    game_mode_stats["mode_score"] = game_mode_stats["avg_score_per_minute"]*(game_mode_stats["win_ratio"] if game_mode_stats["games_count"]>=100 else 1)
+    game_mode_stats["mode_score"] = game_mode_stats["avg_score_per_minute"]*(min(game_mode_stats["win_ratio"],2) if game_mode_stats["games_count"]>=100 else 1)
     return game_mode_stats
 
 def mode_elo(player_stats, game_mode):
@@ -113,10 +113,10 @@ async def calc_elos(data_dict):
     "Deathmatch":"GameModeFFA", "Team Deathmatch":"GameModeTeamDeathmatch", 
     "2V2 TDM":"GameModeTeamDeathmatch2vs2","Duel":"GameModeDuel",
     "Instagib":"GameModeInstagib", "Slipgate":"GameModeSlipgate",
-    "Legacy Ranked Sacrifice":"GameModeObeliskPro", "Legacy Ranked Duel":"GameModeDuelPro",
+    "Sacrifice Tourney":"GameModeObeliskPro", "Ranked Duel":"GameModeDuelPro",
      }
     objective_modes = ["Capture The Flag", "Sacrifice", 
-                        # "Ranked Sacrifice"
+                        "Sacrifice Tourney"
                         ]
     killing_modes = ["Team Deathmatch","2V2 TDM", "Slipgate",
                     # "Instagib", "Deathmatch", 
