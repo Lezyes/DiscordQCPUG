@@ -1,6 +1,7 @@
 import requests
 import discord
 from functools import partial
+from redis.exceptions import ResponseError
 
 from botui import InputModal, SelectView, selection_all, collect_selection_finish, button_pressed, buttons_all, collect_buttons_finish
 from db_utils import jdb_set
@@ -129,7 +130,10 @@ async def calc_elos(data_dict):
     elos["Killing"] = avg([v for k,v in elos.items() if k in killing_modes and v>0])
 
     jdb.set("qcelo", ".['{}']".format(quake_name), elos)
-    db.bgsave()
+    try:
+        db.bgsave()
+    except ResponseError:
+        pass
     return elos
 
 
