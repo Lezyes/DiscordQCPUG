@@ -105,7 +105,7 @@ async def choose_balance_func(data_dict):
     players = data_dict["selections"]["pick_players"]
     if len(data_dict["team_balance_options"]) > 1:
         game_modes = {"args":{"max_values":1},
-                    "options":{k:k for k in ["Sacrifice", "Sacrifice Tourney","Slipgate", "Team Deathmatch", "2V2 TDM"]}}
+                    "options":{k:k for k in ["Sacrifice", "Sacrifice Tourney","Slipgate", "Objective", "Killing"]}}
         balance_options = {"args":{"max_values":1},
                     "options":data_dict["team_balance_options"]}
         data_dict["dropdowns"][current_stage] = [game_modes,balance_options]
