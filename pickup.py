@@ -106,9 +106,7 @@ async def choose_balance_func(data_dict):
     if len(data_dict["team_balance_options"]) > 1:
         game_modes = {"args":{"max_values":1},
                     "options":{k:k for k in ["Sacrifice", "Sacrifice Tourney","Slipgate", "Objective", "Killing"]}}
-        balance_options = {"args":{"max_values":1},
-                    "options":data_dict["team_balance_options"]}
-        data_dict["dropdowns"][current_stage] = [game_modes,balance_options]
+        data_dict["dropdowns"][current_stage] = [game_modes]
         data_dict["buttons"][current_stage]=[{
             "callback_func": collect_selection_finish,
             "label": "Continue With Current Selection",
@@ -120,13 +118,8 @@ async def choose_balance_func(data_dict):
         await data_dict["flow"][current_stage](data_dict)
 
 
-async def assign_players(data_dict):
-    current_stage = "assign_players"
-    
-    jdb = data_dict["db"].json()
-    players = data_dict["selections"]["pick_players"]
-    game_mode_name, game_mode = [(k,v) for k,v in data_dict["selections"]["choose_balance_func"].items() if isinstance(v,str)][0]
-    balance_func_name, balance_func = [(k,v) for k,v in data_dict["selections"]["choose_balance_func"].items() if not isinstance(v,str)][0]
+async def get_players_elo(players, db, channel, game_mode): 
+    jdb = db.json()
     text = ""
     players_elo = {}
     for player_name in players:
@@ -136,9 +129,9 @@ async def assign_players(data_dict):
         else:
             try:
                 player_data_dict = {"player_data":{"quake_name":player_name},
-                                    "channel":data_dict["channel"],
+                                    "channel":channel,
                                     "clean_up":False,
-                                    "db":data_dict["db"]}
+                                    "db":db}
                 player_elo_dict = await refresh_player_data(player_data_dict)
                 
             except Exception as e:
@@ -147,24 +140,41 @@ async def assign_players(data_dict):
             if player_elo_dict=={}:
                 text+=f"{player_name} isn't in the DB and failed to get stats "
         players_elo[player_name] = player_elo_dict.get(game_mode,0) 
+    return players_elo
+
+
+async def send_team_balance_recomendations(channel, players_elo, balance_funcs_dict, game_mode_name):
+    for balance_func_name,balance_func in balance_funcs_dict.items():
+        text = f"\nRecomended teams for {game_mode_name} based on {balance_func_name} algorithm:\n"
+        teams = await balance_func(players_elo)
+        for team1_elo, team2_elo in teams:
+            team1_elo_sum = sum([v for v in team1_elo.values()])
+            team2_elo_sum = sum([v for v in team2_elo.values()])
+            ideal = (team1_elo_sum + team2_elo_sum)/2 or 1
+            distance_from_ideal = abs((abs(team1_elo_sum - team2_elo_sum)/2)/ideal)
+            team1 = list(team1_elo.keys())
+            team2 = list(team2_elo.keys())
+            
+            team1.append("Total ELO: {:0.2f}".format(team1_elo_sum))
+            team2.append("Total ELO: {:0.2f}".format(team2_elo_sum))
+            team1 = ", ".join(team1)
+            team2 = ", ".join(team2)
+            text+= "\nTeam 1:{}\nTeam 2:{}\nIdeal: {:0.2f}%\n".format(team1,team2, distance_from_ideal*100)
+        text+="\n" + ", ".join(["{}:{:0.2f}".format(k,v) for k,v in players_elo.items()])
+        await channel.send(text)
+
+
+async def assign_players(data_dict):
+    current_stage = "assign_players"
     
-    text += f"\nRecomended teams for {game_mode_name} based on {balance_func_name} algorithm:\n"
-    teams = await balance_func(players_elo)
-    for team1_elo, team2_elo in teams:
-        team1_elo_sum = sum([v for v in team1_elo.values()])
-        team2_elo_sum = sum([v for v in team2_elo.values()])
-        ideal = (team1_elo_sum + team2_elo_sum)/2 or 1
-        distance_from_ideal = abs((abs(team1_elo_sum - team2_elo_sum)/2)/ideal)
-        team1 = list(team1_elo.keys())
-        team2 = list(team2_elo.keys())
-        
-        team1.append("Total ELO: {:0.2f}".format(team1_elo_sum))
-        team2.append("Total ELO: {:0.2f}".format(team2_elo_sum))
-        team1 = ", ".join(team1)
-        team2 = ", ".join(team2)
-        text+= "\nTeam 1:{}\nTeam 2:{}\nIdeal: {:0.2f}%\n".format(team1,team2, distance_from_ideal*100)
-    text+="\n" + ", ".join(["{}:{:0.2f}".format(k,v) for k,v in players_elo.items()])
-    await data_dict["channel"].send(text)
+    db = data_dict["db"]
+    channel = data_dict["channel"]
+    game_mode_name, game_mode = [(k,v) for k,v in data_dict["selections"]["choose_balance_func"].items() if isinstance(v,str)][0]
+    balance_funcs_dict = data_dict["team_balance_options"]
+    players = data_dict["selections"]["pick_players"]
+
+    players_elo = await get_players_elo(players, db, channel, game_mode)  
+    await send_team_balance_recomendations(channel, players_elo, balance_funcs_dict, game_mode_name)
     await clean_up_msg(data_dict)
 
 
@@ -182,9 +192,10 @@ async def start_pickup(message, db):
     roles = guilds_roles.get(guild.id, {}).get("roles")
     channels = guilds_roles.get(guild.id, {}).get("channels")
     data_dict = {
-        "team_balance_options": {"Random": shuffle_list, 
-                                 "Pick from top":pick_from_top, 
-                                 "ELO Balanced":weighted_player_allocation},
+        "team_balance_options": {"ELO Balanced":weighted_player_allocation, 
+                                 "Pick from top":pick_from_top,
+                                 "Random": shuffle_list, 
+                                 },
         "message": message,
         "thread": thread,
         "author": author,
