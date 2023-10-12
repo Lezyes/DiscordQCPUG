@@ -8,6 +8,7 @@ services:
       - "6379"
     volumes:
       - ./redis_qc_data/:/data
+    restart: unless-stopped
 
   tessarest:
     build: ./tessarest
@@ -15,6 +16,7 @@ services:
       - qcbot-net
     ports:
       - "80"
+    restart: unless-stopped
 
   qcbot:
     build: ./balance_bot/src
@@ -24,6 +26,7 @@ services:
       - "443"
     # volumes:
     #   - .:/code
+    restart: unless-stopped
 
 networks:
   # The presence of these objects is sufficient to define them
